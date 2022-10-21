@@ -1,4 +1,5 @@
-from flask import Flask, render_template
+from flask import Flask, request
+import json
 
 app = Flask(__name__)
 
@@ -10,7 +11,9 @@ def home():  # put application's code here
 
 @app.route('/test')
 def test_page():
-    return 'This is test page.'
+    q = request.args.get('q')
+    print(q)
+    return {'message': "Hello!"}, 201
 
 
 if __name__ == '__main__':
