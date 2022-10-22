@@ -12,12 +12,21 @@ app_fb = fb.initialize_app(cred)
 db = firestore.client()
 
 if __name__ == '__main__':
-    user_doc = db.collection('users').document('6430000021')
-    did = {
-        'id': '6430000021',
-        'friends': ['6430000{}21'.format(i) for i in range(1, 10)],
-        'status': 2,
-        'current_seat_id': 'NO_SEAT'
-    }
-    user_doc.set(did)
+    user_doc_ref = db.collection('users').document('6430000022')
+    user_collection_stream = db.collection('users').stream()
+    # did = {
+    #     'id': '6430000021',
+    #     'friends': ['6430000{}21'.format(i) for i in range(1, 10)],
+    #     'status': 2,
+    #     'current_seat_id': 'NO_SEAT'
+    # }
+    # user_doc_ref.set(did)
+
+    user_doc = user_doc_ref.get()
+
+    print(user_doc.exists)
+    print(user_doc.to_dict())
+
+    for user in user_collection_stream:
+        print(user.id, user.to_dict())
     pass

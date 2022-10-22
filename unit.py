@@ -1,9 +1,11 @@
 class User:
-    def __init__(self):
-        self.__id = ''
-        self.__friends = []
-        self.__status = 0
-        self.__seat_id = ''
+    def __init__(self, id='', friends=None, status=0, seat_id=''):
+        if friends is None:
+            friends = []
+        self.__id = id
+        self.__friends = friends
+        self.__status = status
+        self.__seat_id = seat_id
         return
 
     @property
