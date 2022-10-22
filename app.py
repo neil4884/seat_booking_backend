@@ -50,7 +50,7 @@ class Command:
 
     @staticmethod
     async def check_in(user: str, seat):
-        await get_user(user).get('status')
+        (await get_user(user))[0].get('status')
         did = {'status': 2, 'seat_id': 'F02A05'}
         await set_user(user, did)
 
@@ -81,8 +81,9 @@ async def run_cmd(command):
     del query_args
     if command == 'get_all_users':
         return await get_users()
-    elif command == 'checkin':
-        # Command.check_in(query)
+    elif command == 'check_in':
+        pass
+    elif command == 'check_out':
         pass
 
     return {}, Response.BAD_REQUEST
@@ -139,7 +140,7 @@ async def update_thing(thing, /, *args, collection_name: str):
     thing_doc = thing_doc_ref.get()
     if args:
         data = {k: v for k, v in args[0].items() if
-                k in thing_doc.to_dict()} if thing_doc.exists else args[0].items()
+                k in thing_doc.to_dict()} if thing_doc.exists else args[0]
     else:
         data = {k: v for k, v in json2dict(request.data).items() if
                 k in thing_doc.to_dict()} if thing_doc.exists else json2dict(request.data)
