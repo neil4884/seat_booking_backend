@@ -1,9 +1,15 @@
+import imp
+from click import command
 from flask import Flask, request
 from firebase_admin import credentials
 from firebase_admin import firestore
+from grpc import Status
+from symbol import async_stmt
 from tools import Response
 from tools import json2dict
 from config import *
+from time import sleep
+from threading import Thread    
 # from tools import make_celery
 # from unit import User
 # from unit import Seat
@@ -18,6 +24,9 @@ cred = credentials.Certificate(os.path.abspath(CREDENTIAL_PATH))
 app_fb = fb.initialize_app(cred)
 db = firestore.client()
 app = Flask(__name__)
+f1_ocpd_seats = 0
+f2_ocpd_seats = 0
+all_ocpd_seats = 0
 
 
 # ####################### BACKEND COMMAND HERE ########################
@@ -47,10 +56,77 @@ class Command:
         return
 
     @staticmethod
-    async def check_in(user: str, seat):
-        await get_user(user)
-        did = {'status': 2, 'seat_id': 'F02A05'}
-        await set_user(user, did)
+    async def count_down(sec: int): #just to countdown in thread
+        sleep(sec)
+
+    @staticmethod
+    async def check_user_not_ontime(timelimit): # REPEAT check if user couldn't make it before timelimit
+        allusers = await get_users().values
+        for user in allusers :
+            if user["status"] == 3:
+                timediff = datetime.datetime.now() -  user["booked_time"]
+                timediff_secs = timediff.total_seconds()
+                if (timediff_secs > timelimit*60):
+                    Command.remove_user_from_seat
+
+    @staticmethod
+    async def booking(user: str, seat): # cast when user booking or changing seat NEW USER STATUS "3" = "on booked"
+        user_to_check = await get_user(user)
+        if user_to_check["status"] == 0:
+            await update_user(user,{"status": 3, "current_seat_id": seat, "booked_time": datetime.datetime.now()})
+            await update_seat(seat,{"status": 1,"seat_user": user})
+            Command.update_ocpd_seat(1,seat)
+        elif user_to_check["status"] == 1:
+            Command.remove_user_from_seat   
+            await update_user(user,{"status": 1, "current_seat_id": seat, "booked_time": datetime.datetime.now()})
+            await update_seat(seat,{"status": await get_seat(seat)["status"],"seat_user": user})
+        elif user_to_check["status"] == 3:
+            Command.remove_user_from_seat   
+            await update_user(user,{"status": 3, "current_seat_id": seat, "booked_time": datetime.datetime.now()})
+            await update_seat(seat,{"status": 1,"seat_user": user})
+
+    @staticmethod
+    async def check_in(user: str, seat): # change status of user to checked in NEW USER STATUS "3" = "on booked"
+        user_to_check = await get_user(user)
+        if user_to_check["status"] == 3 or user_to_check["status"] == 2:
+            await update_user(user, {"status": 1})
+            
+
+    @staticmethod
+    async def check_out(user: str, seat: str, extend: int): # if extend time is more than zero countdown to that extend time
+        if extend == 0 :
+            Command.remove_user_from_seat   
+        else :
+            time = Thread(Command.count_down(extend))
+            time.join()
+            Command.remove_user_from_seat
+
+    @staticmethod
+    async def check_all_ocpd_seats(): # INITIATE count all occupied seats
+        allseats = await get_seats()
+        for seat in allseats.values():
+            if seat["status"] != 0 :
+                all_ocpd_seats += 1
+                if seat["id"][0:3] == "F01":
+                    f1_ocpd_seats += 1
+                elif seat["id"][0:3] == "F02":
+                    f2_ocpd_seats += 1
+        return
+
+    @staticmethod
+    async def update_ocpd_seat(status: int, seat_id: str): # update occupied seats, cast when user booked(1) or removed(0) from Library
+        if status != 0 :
+            all_ocpd_seats += 1
+            if seat_id[0:3] == "F01":
+                f1_ocpd_seats += 1
+            elif seat_id[0:3] == "F02":
+                f2_ocpd_seats += 1
+        else :
+            all_ocpd_seats -= 1
+            if seat_id[0:3] == "F01":
+                f1_ocpd_seats -= 1
+            elif seat_id[0:3] == "F02":
+                f2_ocpd_seats -= 1
 
 
 # ####################### INSERT BACKGROUND TASKS HERE, E.G. CHECKING SOMETHING EVERY 1 S ########################
