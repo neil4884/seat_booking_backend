@@ -1,6 +1,8 @@
+from google.api_core.datetime_helpers import DatetimeWithNanoseconds
 from flask import Flask
 from celery import Celery
 import json
+import datetime
 
 
 class Response:
@@ -19,14 +21,9 @@ def json2dict(data):
     return json.loads(data, strict=False) if data else dict()
 
 
-def make_celery(app):
-    celery = Celery(app.import_name)
-    celery.conf.update(app.config.get('CELERY_CONFIG'))
+def to_datetime(date_time_with_nanoseconds: DatetimeWithNanoseconds):
+    return datetime.datetime.fromtimestamp(date_time_with_nanoseconds.timestamp())
 
-    class ContextTask(celery.Task):
-        def __call__(self, *args, **kwargs):
-            with app.app_context():
-                return self.run(*args, **kwargs)
 
-    celery.Task = ContextTask
-    return celery
+def time_now():
+    return datetime.datetime.now()
