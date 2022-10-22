@@ -12,6 +12,7 @@ import firebase_admin as fb
 import os
 import asyncio
 import threading
+import datetime
 
 cred = credentials.Certificate(os.path.abspath(CREDENTIAL_PATH))
 app_fb = fb.initialize_app(cred)
@@ -45,6 +46,12 @@ class Command:
             pass
         return
 
+    @staticmethod
+    async def check_in(user: str, seat):
+        await get_user(user)
+        did = {'status': 2, 'seat_id': 'F02A05'}
+        await set_user(user, did)
+
 
 # ####################### INSERT BACKGROUND TASKS HERE, E.G. CHECKING SOMETHING EVERY 1 S ########################
 
@@ -69,6 +76,9 @@ async def run_cmd(command):
     del query_args
     if command == 'get_all_users':
         return await get_users()
+    elif command == 'checkin':
+
+        pass
 
     return {}, Response.BAD_REQUEST
 
