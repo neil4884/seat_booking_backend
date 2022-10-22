@@ -4,6 +4,16 @@ class User:
         self.__friends = []
         self.__status = 0
         self.__seat_id = ''
+        return
+
+    @property
+    def user(self):
+        return {
+            'id': self.id,
+            'friends': self.friends,
+            'status': self.status,
+            'current_seat_id': self.seat_id
+        }
 
     @property
     def id(self):
