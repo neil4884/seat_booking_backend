@@ -1,4 +1,6 @@
 from enum import Enum
+from flask import Flask
+from celery import Celery
 import json
 
 
@@ -16,3 +18,16 @@ class Response(Enum):
 
 def json2dict(data):
     return json.loads(data, strict=False) if data else dict()
+
+
+def make_celery(app):
+    celery = Celery(app.import_name)
+    celery.conf.update(app.config.get('CELERY_CONFIG'))
+
+    class ContextTask(celery.Task):
+        def __call__(self, *args, **kwargs):
+            with app.app_context():
+                return self.run(*args, **kwargs)
+
+    celery.Task = ContextTask
+    return celery

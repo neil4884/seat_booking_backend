@@ -51,10 +51,10 @@ class User:
 
 
 class Seat:
-    def __init__(self):
-        self.__seat_id = ''
-        self.__status = 0
-        self.__caption = ''
+    def __init__(self, seat_id='', status=0, caption=''):
+        self.__seat_id = seat_id
+        self.__status = status
+        self.__caption = caption
 
     @property
     def seat_id(self):
