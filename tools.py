@@ -1,10 +1,9 @@
-from enum import Enum
 from flask import Flask
 from celery import Celery
 import json
 
 
-class Response(Enum):
+class Response:
     OK = 200
     CREATED = 201
     ACCEPTED = 202
