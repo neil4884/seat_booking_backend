@@ -1,27 +1,158 @@
 from flask import Flask, request
-# from celery import Celery
 from firebase_admin import credentials
 from firebase_admin import firestore
 from tools import Response
 from tools import json2dict
+from config import *
 # from tools import make_celery
 # from unit import User
 # from unit import Seat
 import firebase_admin as fb
 # import json
 import os
+import asyncio
+import threading
 
-USERS_COLLECTION = 'users'
-SEATS_COLLECTION = 'seats'
-
-cred = credentials.Certificate(os.path.abspath('credentials/seat-booking-db-firebase-adminsdk-4e0g2-518adfa3cc.json'))
+cred = credentials.Certificate(os.path.abspath(CREDENTIAL_PATH))
 app_fb = fb.initialize_app(cred)
 db = firestore.client()
 app = Flask(__name__)
 
 
-# celery = make_celery(app)
+# ####################### BACKEND COMMAND HERE ########################
 
+class Command:
+    def __init__(self, instance_id=0):
+        self.__instance_id = instance_id
+        return
+
+    @property
+    def instance_id(self):
+        return self.__instance_id
+
+    @instance_id.setter
+    def instance_id(self, value):
+        self.__instance_id = value
+
+    # Insert commands below
+    @staticmethod
+    async def remove_user_from_seat(*, user=None, seat=None):
+        if user is not None and seat is not None:
+            raise Exception('Input either user or seat, not both.')
+        if user is not None:
+            pass
+        if seat is not None:
+            pass
+        return
+
+
+# ####################### INSERT BACKGROUND TASKS HERE, E.G. CHECKING SOMETHING EVERY 1 S ########################
+
+async def background_tasks(instance: Command):
+    print('Running some tasks in the background...')
+    print('Instance id =', instance.instance_id)
+    return
+
+
+# ####################### CUSTOM COMMAND FROM FRONTEND QUERY ########################
+
+@app.route('/custom/<command>', methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE'])
+async def run_cmd(command):
+    """
+    Custom command
+
+    :param command:
+    :return:
+    """
+    query_args = request.args.get('args')
+    query = [] if not query_args or query_args is None else query_args.strip().split(',')
+    del query_args
+    if command == 'get_all_users':
+        return await get_users()
+
+    return {}, Response.BAD_REQUEST
+
+
+# ####################### TEMPLATE FOR THING QUERY ########################
+
+async def get_things(collection_name: str):
+    data = json2dict(request.data)
+    if not data or data.get(collection_name) is None:
+        things_collection_stream = db.collection(collection_name).stream()
+        things = {thing.id: thing.to_dict() for thing in things_collection_stream}
+        if not things:
+            return {}, Response.NO_CONTENT
+        return things, Response.OK
+
+    return_dict = {}
+    for thing_id in data.get(collection_name):
+        thing_doc_ref = db.collection(collection_name).document(thing_id)
+        thing_doc = thing_doc_ref.get()
+        if thing_doc.exists:
+            return_dict[thing_id] = thing_doc.to_dict()
+
+    return return_dict, (Response.OK if return_dict else Response.NO_CONTENT)
+
+
+async def get_thing(thing, /, collection_name: str):
+    thing_doc_ref = db.collection(collection_name).document(thing)
+    thing_doc = thing_doc_ref.get()
+    if not thing_doc.exists:
+        return {}, Response.NO_CONTENT
+    return thing_doc.to_dict(), Response.OK
+
+
+async def set_thing(thing, /, collection_name: str):
+    thing_doc_ref = db.collection(collection_name).document(thing)
+    thing_doc = thing_doc_ref.get()
+    data = json2dict(request.data)
+    if not thing_doc.exists:
+        thing_doc_ref.set(data, merge=True)
+        thing_doc = thing_doc_ref.get()
+        return thing_doc.to_dict(), Response.CREATED
+    thing_doc_ref.set(data, merge=True)
+    thing_doc = thing_doc_ref.get()
+    return thing_doc.to_dict(), Response.OK
+
+
+async def update_thing(thing, /, collection_name: str):
+    thing_doc_ref = db.collection(collection_name).document(thing)
+    thing_doc = thing_doc_ref.get()
+    data = {k: v for k, v in json2dict(request.data).items() if
+            k in thing_doc.to_dict()} if thing_doc.exists else json2dict(request.data)
+    if not thing_doc.exists:
+        thing_doc_ref.set(data, merge=True)
+        thing_doc = thing_doc_ref.get()
+        return thing_doc.to_dict(), Response.CREATED
+    thing_doc_ref.set(data, merge=True)
+    thing_doc = thing_doc_ref.get()
+    return thing_doc.to_dict(), Response.OK
+
+
+async def delete_things(collection_name: str):
+    data = json2dict(request.data)
+    return_dict = {}
+    if not data or data.get(collection_name) is None:
+        return {}, Response.BAD_REQUEST
+    for thing_id in data.get(collection_name):
+        thing_doc_ref = db.collection(collection_name).document(thing_id)
+        thing_doc = thing_doc_ref.get()
+        if thing_doc.exists:
+            thing_doc_ref.delete()
+            return_dict[thing_id] = (thing_doc.to_dict())
+    return return_dict, Response.OK
+
+
+async def delete_thing(thing, /, collection_name: str):
+    thing_doc_ref = db.collection(collection_name).document(thing)
+    thing_doc = thing_doc_ref.get()
+    if not thing_doc.exists:
+        return {}, Response.NO_CONTENT
+    thing_doc_ref.delete()
+    return thing_doc.to_dict(), Response.OK
+
+
+# ####################### USER QUERY ########################
 
 @app.route('/users', methods=['GET'])
 async def get_users():
@@ -32,22 +163,7 @@ async def get_users():
 
     :return:
     """
-    data = json2dict(request.data)
-    if not data or data.get('users') is None:
-        users_collection_stream = db.collection(USERS_COLLECTION).stream()
-        users = {user.id: user.to_dict() for user in users_collection_stream}
-        if not users:
-            return {}, Response.NO_CONTENT
-        return users, Response.OK
-
-    return_dict = {}
-    for user_id in data.get('users'):
-        user_doc_ref = db.collection(USERS_COLLECTION).document(user_id)
-        user_doc = user_doc_ref.get()
-        if user_doc.exists:
-            return_dict[user_id] = user_doc.to_dict()
-
-    return return_dict, (Response.OK if return_dict else Response.NO_CONTENT)
+    return await get_things(collection_name=USERS_COLLECTION)
 
 
 @app.route('/users/<user>', methods=['GET'])
@@ -58,11 +174,7 @@ async def get_user(user):
     :param user:
     :return:
     """
-    user_doc_ref = db.collection(USERS_COLLECTION).document(user)
-    user_doc = user_doc_ref.get()
-    if not user_doc.exists:
-        return {}, Response.NO_CONTENT
-    return user_doc.to_dict(), Response.OK
+    return await get_thing(user, collection_name=USERS_COLLECTION)
 
 
 @app.route('/users/<user>', methods=['POST', 'PUT'])
@@ -75,16 +187,7 @@ async def set_user(user):
     :param user:
     :return:
     """
-    user_doc_ref = db.collection(USERS_COLLECTION).document(user)
-    user_doc = user_doc_ref.get()
-    data = json2dict(request.data)
-    if not user_doc.exists:
-        user_doc_ref.set(data, merge=True)
-        user_doc = user_doc_ref.get()
-        return user_doc.to_dict(), Response.CREATED
-    user_doc_ref.set(data, merge=True)
-    user_doc = user_doc_ref.get()
-    return user_doc.to_dict(), Response.OK
+    return await set_thing(user, collection_name=USERS_COLLECTION)
 
 
 @app.route('/users/<user>', methods=['PATCH'])
@@ -95,42 +198,17 @@ async def update_user(user):
     :param user:
     :return:
     """
-    user_doc_ref = db.collection(USERS_COLLECTION).document(user)
-    user_doc = user_doc_ref.get()
-    data = {k: v for k, v in json2dict(request.data).items() if
-            k in user_doc.to_dict()} if user_doc.exists else json2dict(request.data)
-    if not user_doc.exists:
-        user_doc_ref.set(data, merge=True)
-        user_doc = user_doc_ref.get()
-        return user_doc.to_dict(), Response.CREATED
-    user_doc_ref.set(data, merge=True)
-    user_doc = user_doc_ref.get()
-    return user_doc.to_dict(), Response.OK
+    return await update_thing(user, collection_name=USERS_COLLECTION)
 
 
 @app.route('/users', methods=['DELETE'])
 async def delete_users():
-    data = json2dict(request.data)
-    return_dict = {}
-    if not data or data.get('users') is None:
-        return {}, Response.BAD_REQUEST
-    for user_id in data.get('users'):
-        user_doc_ref = db.collection(USERS_COLLECTION).document(user_id)
-        user_doc = user_doc_ref.get()
-        if user_doc.exists:
-            user_doc_ref.delete()
-            return_dict[user_id] = (user_doc.to_dict())
-    return return_dict, Response.OK
+    return await delete_things(collection_name=USERS_COLLECTION)
 
 
 @app.route('/users/<user>', methods=['DELETE'])
 async def delete_user(user):
-    user_doc_ref = db.collection(USERS_COLLECTION).document(user)
-    user_doc = user_doc_ref.get()
-    if not user_doc.exists:
-        return {}, Response.NO_CONTENT
-    user_doc_ref.delete()
-    return user_doc.to_dict(), Response.OK
+    return await delete_thing(user, collection_name=USERS_COLLECTION)
 
 
 # ####################### SEAT QUERY ########################
@@ -144,22 +222,7 @@ async def get_seats():
 
     :return:
     """
-    data = json2dict(request.data)
-    if not data or data.get('seats') is None:
-        SEATS_COLLECTION_stream = db.collection(SEATS_COLLECTION).stream()
-        seats = {seat.id: seat.to_dict() for seat in SEATS_COLLECTION_stream}
-        if not seats:
-            return {}, Response.NO_CONTENT
-        return seats, Response.OK
-
-    return_dict = {}
-    for seat_id in data.get('seats'):
-        seat_doc_ref = db.collection(SEATS_COLLECTION).document(seat_id)
-        seat_doc = seat_doc_ref.get()
-        if seat_doc.exists:
-            return_dict[seat_id] = seat_doc.to_dict()
-
-    return return_dict, (Response.OK if return_dict else Response.NO_CONTENT)
+    return await get_things(collection_name=SEATS_COLLECTION)
 
 
 @app.route('/seats/<seat>', methods=['GET'])
@@ -170,11 +233,7 @@ async def get_seat(seat):
     :param seat:
     :return:
     """
-    seat_doc_ref = db.collection(SEATS_COLLECTION).document(seat)
-    seat_doc = seat_doc_ref.get()
-    if not seat_doc.exists:
-        return {}, Response.NO_CONTENT
-    return seat_doc.to_dict(), Response.OK
+    return await get_thing(seat, collection_name=SEATS_COLLECTION)
 
 
 @app.route('/seats/<seat>', methods=['POST', 'PUT'])
@@ -187,16 +246,7 @@ async def set_seat(seat):
     :param seat:
     :return:
     """
-    seat_doc_ref = db.collection(SEATS_COLLECTION).document(seat)
-    seat_doc = seat_doc_ref.get()
-    data = json2dict(request.data)
-    if not seat_doc.exists:
-        seat_doc_ref.set(data, merge=True)
-        seat_doc = seat_doc_ref.get()
-        return seat_doc.to_dict(), Response.CREATED
-    seat_doc_ref.set(data, merge=True)
-    seat_doc = seat_doc_ref.get()
-    return seat_doc.to_dict(), Response.OK
+    return await set_thing(seat, collection_name=SEATS_COLLECTION)
 
 
 @app.route('/seats/<seat>', methods=['PATCH'])
@@ -207,48 +257,52 @@ async def update_seat(seat):
     :param seat:
     :return:
     """
-    seat_doc_ref = db.collection(SEATS_COLLECTION).document(seat)
-    seat_doc = seat_doc_ref.get()
-    data = {k: v for k, v in json2dict(request.data).items() if
-            k in seat_doc.to_dict()} if seat_doc.exists else json2dict(request.data)
-    if not seat_doc.exists:
-        seat_doc_ref.set(data, merge=True)
-        seat_doc = seat_doc_ref.get()
-        return seat_doc.to_dict(), Response.CREATED
-    seat_doc_ref.set(data, merge=True)
-    seat_doc = seat_doc_ref.get()
-    return seat_doc.to_dict(), Response.OK
+    return await update_thing(seat, collection_name=SEATS_COLLECTION)
 
 
 @app.route('/seats', methods=['DELETE'])
 async def delete_seats():
-    data = json2dict(request.data)
-    return_dict = {}
-    if not data or data.get('seats') is None:
-        return {}, Response.BAD_REQUEST
-    for seat_id in data.get('seats'):
-        seat_doc_ref = db.collection(SEATS_COLLECTION).document(seat_id)
-        seat_doc = seat_doc_ref.get()
-        if seat_doc.exists:
-            seat_doc_ref.delete()
-            return_dict[seat_id] = (seat_doc.to_dict())
-    return return_dict, Response.OK
+    return await delete_things(collection_name=SEATS_COLLECTION)
 
 
 @app.route('/seats/<seat>', methods=['DELETE'])
 async def delete_seat(seat):
-    seat_doc_ref = db.collection(SEATS_COLLECTION).document(seat)
-    seat_doc = seat_doc_ref.get()
-    if not seat_doc.exists:
-        return {}, Response.NO_CONTENT
-    seat_doc_ref.delete()
-    return seat_doc.to_dict(), Response.OK
+    return await delete_thing(seat, collection_name=SEATS_COLLECTION)
 
 
-# @celery.task()
-# def background():
-#     return
+# ####################### SHUTDOWN QUERY (BETA) ########################
 
+@app.route('/shutdown', methods=['GET'])
+async def shutdown():
+    passwd = request.args.get('auth')
+    if passwd != 'haha':
+        return {}, Response.UNAUTHORIZED
+    return shutdown_server()
+
+
+def shutdown_server():
+    # Currently do nothing...
+    return {}, Response.ACCEPTED
+
+
+# ####################### CONCURRENCY SETUP ########################
+
+async def background_handler(loop_f=background_tasks, interval=LOOP_INTERVAL):
+    cmd_instance = Command()
+    while True:
+        await loop_f(cmd_instance)
+        await asyncio.sleep(interval)
+
+
+def setup_loop(loop_arg: asyncio.BaseEventLoop):
+    asyncio.set_event_loop(loop_arg)
+    loop_arg.run_until_complete(background_handler())
+    return
+
+
+loop = asyncio.new_event_loop()
+concurrent_thread = threading.Thread(target=setup_loop, args=(loop,), daemon=True)
+concurrent_thread.start()
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False)
