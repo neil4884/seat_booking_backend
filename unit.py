@@ -90,3 +90,5 @@ if __name__ == '__main__':
     print(seat.id)
     user.friends.append('xxz')
     print(user.friends)
+
+
