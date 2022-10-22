@@ -19,6 +19,8 @@ app_fb = fb.initialize_app(cred)
 db = firestore.client()
 app = Flask(__name__)
 
+library = None
+
 
 # ####################### BACKEND COMMAND HERE ########################
 
@@ -48,7 +50,7 @@ class Command:
 
     @staticmethod
     async def check_in(user: str, seat):
-        await get_user(user)
+        await get_user(user).get('status')
         did = {'status': 2, 'seat_id': 'F02A05'}
         await set_user(user, did)
 
@@ -58,6 +60,9 @@ class Command:
 async def background_tasks(instance: Command):
     print('Running some tasks in the background...')
     print('Instance id =', instance.instance_id)
+    library = await get_user('6430000521')
+    await update_user('6430000521', {'friends': []})
+    print(library)
     return
 
 
@@ -77,7 +82,7 @@ async def run_cmd(command):
     if command == 'get_all_users':
         return await get_users()
     elif command == 'checkin':
-
+        # Command.check_in(query)
         pass
 
     return {}, Response.BAD_REQUEST
@@ -112,10 +117,14 @@ async def get_thing(thing, /, collection_name: str):
     return thing_doc.to_dict(), Response.OK
 
 
-async def set_thing(thing, /, collection_name: str):
+async def set_thing(thing, /, *args, collection_name: str):
     thing_doc_ref = db.collection(collection_name).document(thing)
     thing_doc = thing_doc_ref.get()
-    data = json2dict(request.data)
+    if args:
+        data = args[0]
+    else:
+        data = json2dict(request.data)
+
     if not thing_doc.exists:
         thing_doc_ref.set(data, merge=True)
         thing_doc = thing_doc_ref.get()
@@ -125,11 +134,15 @@ async def set_thing(thing, /, collection_name: str):
     return thing_doc.to_dict(), Response.OK
 
 
-async def update_thing(thing, /, collection_name: str):
+async def update_thing(thing, /, *args, collection_name: str):
     thing_doc_ref = db.collection(collection_name).document(thing)
     thing_doc = thing_doc_ref.get()
-    data = {k: v for k, v in json2dict(request.data).items() if
-            k in thing_doc.to_dict()} if thing_doc.exists else json2dict(request.data)
+    if args:
+        data = {k: v for k, v in args[0].items() if
+                k in thing_doc.to_dict()} if thing_doc.exists else args[0].items()
+    else:
+        data = {k: v for k, v in json2dict(request.data).items() if
+                k in thing_doc.to_dict()} if thing_doc.exists else json2dict(request.data)
     if not thing_doc.exists:
         thing_doc_ref.set(data, merge=True)
         thing_doc = thing_doc_ref.get()
@@ -188,7 +201,7 @@ async def get_user(user):
 
 
 @app.route('/users/<user>', methods=['POST', 'PUT'])
-async def set_user(user):
+async def set_user(user, *args):
     """
     Set user's value in request body's key: value accordingly, merge if exists.
 
@@ -197,18 +210,18 @@ async def set_user(user):
     :param user:
     :return:
     """
-    return await set_thing(user, collection_name=USERS_COLLECTION)
+    return await set_thing(user, *args, collection_name=USERS_COLLECTION)
 
 
 @app.route('/users/<user>', methods=['PATCH'])
-async def update_user(user):
+async def update_user(user, *args):
     """
     Update user's value in request body's key: value accordingly, merge if exists.
 
     :param user:
     :return:
     """
-    return await update_thing(user, collection_name=USERS_COLLECTION)
+    return await update_thing(user, *args, collection_name=USERS_COLLECTION)
 
 
 @app.route('/users', methods=['DELETE'])
@@ -247,7 +260,7 @@ async def get_seat(seat):
 
 
 @app.route('/seats/<seat>', methods=['POST', 'PUT'])
-async def set_seat(seat):
+async def set_seat(seat, *args):
     """
     Set seat's value in request body's key: value accordingly, merge if exists.
 
@@ -256,18 +269,18 @@ async def set_seat(seat):
     :param seat:
     :return:
     """
-    return await set_thing(seat, collection_name=SEATS_COLLECTION)
+    return await set_thing(seat, *args, collection_name=SEATS_COLLECTION)
 
 
 @app.route('/seats/<seat>', methods=['PATCH'])
-async def update_seat(seat):
+async def update_seat(seat, *args):
     """
     Update seat's value in request body's key: value accordingly, merge if exists.
 
     :param seat:
     :return:
     """
-    return await update_thing(seat, collection_name=SEATS_COLLECTION)
+    return await update_thing(seat, *args, collection_name=SEATS_COLLECTION)
 
 
 @app.route('/seats', methods=['DELETE'])
