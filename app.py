@@ -1,23 +1,22 @@
-import flask
-from flask import Flask, request
+from flask import Flask
+from flask import request
 from firebase_admin import credentials
 from firebase_admin import firestore
 from tools import Response
 from tools import json2dict
 from config import *
-# from tools import make_celery
-# from unit import User
-# from unit import Seat
+import flask
+import tools
 import firebase_admin as fb
-# import json
 import os
 import asyncio
 import threading
+import room
 
-# Override fast loop interval
+# Override fast loop interval (default=1)
 # LOOP_1_INTERVAL = 1
 
-# Override slow loop interval
+# Override slow loop interval (default=10)
 # LOOP_2_INTERVAL = 2
 
 cred = credentials.Certificate(os.path.join(os.path.dirname(__file__), CREDENTIAL_PATH))
@@ -25,7 +24,11 @@ app_fb = fb.initialize_app(cred)
 db = firestore.client()
 app = Flask(__name__)
 
-library = None
+f1_ocpd_seats = 0
+f2_ocpd_seats = 0
+all_ocpd_seats = 0
+my_library = room.Library() # Library with 2 floors, view usages in lib.
+
 
 # ####################### BACKEND COMMAND HERE ########################
 
@@ -41,24 +44,97 @@ class Command:
     @instance_id.setter
     def instance_id(self, value):
         self.__instance_id = value
-
-    # Insert commands below
-    @staticmethod
-    async def remove_user_from_seat(*, user=None, seat=None):
-        if user is not None and seat is not None:
-            raise Exception('Input either user or seat, not both.')
-        if user is not None:
-            user_data = get_user(user)
-        if seat is not None:
-            pass
         return
 
     @staticmethod
-    async def check_in(user: str, seat):
-        (await get_user(user))[0].get('status')
-        did = {'status': 2, 'seat_id': 'F02A05'}
-        await set_user(user, did)
-        return  # MUST RETURN A DICTIONARY AND RESPONSE CODE
+    async def book(user: str, seat: str):
+        user_ref = (await get_user(user))[0]
+        user_status = user_ref.get('status')
+        if user_status == 0:
+            await update_user(user, {
+                'status': 3,
+                'current_seat_id': seat,
+                'booked_time': tools.time_now()
+            })
+            await update_seat(seat, {
+                'status': 1,
+                'seat_user': user
+            })
+            return {}, Response.CREATED
+        elif user_status in (1, 3):
+            await Command.remove_user(user)
+            await update_user(user, {
+                'status': 3,
+                'current_seat_id': seat,
+                'booked_time': tools.time_now()
+            })
+            await update_seat(seat, {
+                'status': 1,
+                'seat_user': user
+            })
+            if user_status == 1:
+                # Automatically change seat and re-check in (user already checked in)
+                await Command.check_in(user)
+            return {}, Response.CREATED
+        return {}, Response.BAD_REQUEST
+
+
+    @staticmethod
+    async def remove_user(user: str):
+        # todo remove from library (unoccupy seat and remove user)
+        user_ref = (await get_user(user))[0]
+        await update_user(user, {
+            'status': 0,
+            'current_seat_id': ''
+        })
+        await update_seat(user_ref.get('current_seat_id'), {
+            'status': 0,
+            'seat_user': ''
+        })
+        return {}, Response.OK
+
+    @staticmethod
+    async def remove_seat(seat: str):
+        # todo remove from library (unoccupy seat and remove user)
+        seat_ref = (await get_seat(seat))[0]
+        await update_user(seat_ref.get('seat_user'), {
+            'status': 0,
+            'current_seat_id': ''
+        })
+        await update_seat(seat, {
+            'status': 0,
+            'seat_user': ''
+        })
+        return {}, Response.OK
+
+    @staticmethod
+    async def check_in(user: str):
+        user_ref = (await get_user(user))[0]
+        if user_ref.get == 3:
+            seat_id = user_ref.get('current_seat_id')
+            if seat_id[:3] == 'F01':
+                my_library.floor_1.insert_user(user)
+                my_library.floor_1.occupy_seat(seat_id)
+            else:
+                my_library.floor_2.insert_user(user)
+                my_library.floor_2.occupy_seat(seat_id)
+            return await update_user(user, {
+                'status': 1
+            })
+        return {}, Response.BAD_REQUEST
+
+    @staticmethod
+    async def check_out(user: str = None, seat: str = None):
+        if user is not None and seat is not None:
+            raise Exception('Input either user or seat, not both.')
+        try:
+            if user is not None:
+                return await Command.remove_user(user=user)
+            elif seat is not None:
+                return await Command.remove_seat(seat=seat)
+        except Exception:
+            pass
+        return {}, Response.BAD_REQUEST
 
 
 # ####################### INSERT BACKGROUND TASKS HERE, E.G. CHECKING SOMETHING EVERY 1 S ########################
@@ -330,6 +406,12 @@ async def shutdown():
     if passwd != 'haha':
         return {}, Response.UNAUTHORIZED
     return shutdown_server()
+
+
+@app.route('/api')
+async def api_test():
+    return {'status_code': 1}, Response.OK
+
 
 @app.route('/')
 async def hello():
