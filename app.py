@@ -65,15 +65,15 @@ class Command:
 
 
 async def run_once_background_tasks(*args, **kwargs):
-    print('FAST AND SLOW THREAD STARTED! (SYNCED WITH FAST)')
+    # print('FAST AND SLOW THREAD STARTED! (SYNCED WITH FAST)')
     # users_list = await get_users()
     # print('\n'.join([str(user) for user, _ in users_list[0].items()]))
     return
 
 
 async def background_tasks_fast(cmd_instance: Command):
-    print('Running fast tasks in the background...')
-    print('Instance id =', cmd_instance.instance_id)
+    # print('Running fast tasks in the background...')
+    # print('Instance id =', cmd_instance.instance_id)
     # library = await get_user('6430000521')
     # await update_user('6430000521', {'friends': []})
     # print(library)
@@ -81,8 +81,8 @@ async def background_tasks_fast(cmd_instance: Command):
 
 
 async def background_tasks_slow(cmd_instance: Command):
-    print('Running slow tasks in the background...')
-    print('Instance id =', cmd_instance.instance_id)
+    # print('Running slow tasks in the background...')
+    # print('Instance id =', cmd_instance.instance_id)
     # library = await get_user('6430000521')
     # await update_user('6430000521', {'friends': []})
     # print(library)
