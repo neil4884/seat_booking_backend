@@ -14,14 +14,18 @@ import os
 import asyncio
 import threading
 
+# Override fast loop interval
+# LOOP_1_INTERVAL = 1
+
+# Override slow loop interval
+# LOOP_2_INTERVAL = 2
+
 cred = credentials.Certificate(os.path.abspath(CREDENTIAL_PATH))
 app_fb = fb.initialize_app(cred)
 db = firestore.client()
 app = Flask(__name__)
-Config.set_loop_interval(0.1)
 
 library = None
-
 
 # ####################### BACKEND COMMAND HERE ########################
 
@@ -54,21 +58,30 @@ class Command:
         (await get_user(user))[0].get('status')
         did = {'status': 2, 'seat_id': 'F02A05'}
         await set_user(user, did)
-        return # MUST RETURN A DICTIONARY AND RESPONSE CODE
+        return  # MUST RETURN A DICTIONARY AND RESPONSE CODE
 
 
 # ####################### INSERT BACKGROUND TASKS HERE, E.G. CHECKING SOMETHING EVERY 1 S ########################
 
 
 async def run_once_background_tasks(*args, **kwargs):
-    print('THREAD STARTED!')
-    users_list = await get_users()
-    print('\n'.join([str(user) for user, _ in users_list[0].items()]))
+    print('FAST AND SLOW THREAD STARTED! (SYNCED WITH FAST)')
+    # users_list = await get_users()
+    # print('\n'.join([str(user) for user, _ in users_list[0].items()]))
     return
 
 
-async def background_tasks(cmd_instance: Command):
-    print('Running some tasks in the background...')
+async def background_tasks_fast(cmd_instance: Command):
+    print('Running fast tasks in the background...')
+    print('Instance id =', cmd_instance.instance_id)
+    # library = await get_user('6430000521')
+    # await update_user('6430000521', {'friends': []})
+    # print(library)
+    return
+
+
+async def background_tasks_slow(cmd_instance: Command):
+    print('Running slow tasks in the background...')
     print('Instance id =', cmd_instance.instance_id)
     # library = await get_user('6430000521')
     # await update_user('6430000521', {'friends': []})
@@ -326,23 +339,50 @@ def shutdown_server():
 
 # ####################### CONCURRENCY SETUP ########################
 
-async def background_handler(loop_f=background_tasks, interval=LOOP_INTERVAL):
-    await run_once_background_tasks()
+async def background_handler(once_task=None, loop_task=None, interval=LOOP_1_INTERVAL, instance_id=0):
+    if callable(once_task):
+        await once_task()
+    if not callable(loop_task):
+        print(loop_task, 'not callable.')
+        return
     cmd_instance = Command()
+    cmd_instance.instance_id = instance_id
     while True:
-        await loop_f(cmd_instance)
+        await loop_task(cmd_instance)
         await asyncio.sleep(interval)
 
 
-def setup_loop(loop_arg: asyncio.BaseEventLoop):
+def setup_loop(loop_arg: asyncio.BaseEventLoop, handler, loop_task, interval, once_task=None, instance_id=0):
     asyncio.set_event_loop(loop_arg)
-    loop_arg.run_until_complete(background_handler())
+    loop_arg.run_until_complete(handler(once_task, loop_task, interval, instance_id))
     return
 
 
-loop = asyncio.new_event_loop()
-concurrent_thread = threading.Thread(target=setup_loop, args=(loop,), daemon=True)
-concurrent_thread.start()
+loop_1, loop_2 = asyncio.new_event_loop(), asyncio.new_event_loop()
+
+concurrent_thread_1 = threading.Thread(target=setup_loop,
+                                       args=(
+                                           loop_1,
+                                           background_handler,
+                                           background_tasks_fast,
+                                           LOOP_1_INTERVAL,
+                                           run_once_background_tasks,
+                                           1
+                                       ),
+                                       daemon=True)
+concurrent_thread_1.start()
+
+concurrent_thread_2 = threading.Thread(target=setup_loop,
+                                       args=(
+                                           loop_2,
+                                           background_handler,
+                                           background_tasks_slow,
+                                           LOOP_2_INTERVAL,
+                                           None,
+                                           2
+                                       ),
+                                       daemon=True)
+concurrent_thread_2.start()
 
 if __name__ == '__main__':
     app.run(debug=False)
