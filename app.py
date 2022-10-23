@@ -1,5 +1,4 @@
-import imp
-from click import command
+import flask
 from flask import Flask, request
 from firebase_admin import credentials
 from firebase_admin import firestore
@@ -20,6 +19,7 @@ import asyncio
 import threading
 import datetime
 
+
 cred = credentials.Certificate(os.path.abspath(CREDENTIAL_PATH))
 app_fb = fb.initialize_app(cred)
 db = firestore.client()
@@ -27,6 +27,9 @@ app = Flask(__name__)
 f1_ocpd_seats = 0
 f2_ocpd_seats = 0
 all_ocpd_seats = 0
+Config.set_loop_interval(0.1)
+
+library = None
 
 
 # ####################### BACKEND COMMAND HERE ########################
@@ -50,7 +53,7 @@ class Command:
         if user is not None and seat is not None:
             raise Exception('Input either user or seat, not both.')
         if user is not None:
-            pass
+            user_data = get_user(user)
         if seat is not None:
             pass
         return
@@ -131,15 +134,26 @@ class Command:
 
 # ####################### INSERT BACKGROUND TASKS HERE, E.G. CHECKING SOMETHING EVERY 1 S ########################
 
-async def background_tasks(instance: Command):
+
+async def run_once_background_tasks(*args, **kwargs):
+    print('THREAD STARTED!')
+    users_list = await get_users()
+    print('\n'.join([str(user) for user, _ in users_list[0].items()]))
+    return
+
+
+async def background_tasks(cmd_instance: Command):
     print('Running some tasks in the background...')
-    print('Instance id =', instance.instance_id)
+    print('Instance id =', cmd_instance.instance_id)
+    # library = await get_user('6430000521')
+    # await update_user('6430000521', {'friends': []})
+    # print(library)
     return
 
 
 # ####################### CUSTOM COMMAND FROM FRONTEND QUERY ########################
 
-@app.route('/custom/<command>', methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE'])
+@app.route('/api/custom/<command>', methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE'])
 async def run_cmd(command):
     """
     Custom command
@@ -152,8 +166,9 @@ async def run_cmd(command):
     del query_args
     if command == 'get_all_users':
         return await get_users()
-    elif command == 'checkin':
-
+    elif command == 'check_in':
+        pass
+    elif command == 'check_out':
         pass
 
     return {}, Response.BAD_REQUEST
@@ -161,9 +176,14 @@ async def run_cmd(command):
 
 # ####################### TEMPLATE FOR THING QUERY ########################
 
-async def get_things(collection_name: str):
-    data = json2dict(request.data)
-    if not data or data.get(collection_name) is None:
+async def get_things(*args, collection_name: str):
+    if args:
+        data = args[0]
+    elif flask.has_request_context():
+        data = json2dict(request.data).get(collection_name)
+    else:
+        data = None
+    if data is None:
         things_collection_stream = db.collection(collection_name).stream()
         things = {thing.id: thing.to_dict() for thing in things_collection_stream}
         if not things:
@@ -171,7 +191,7 @@ async def get_things(collection_name: str):
         return things, Response.OK
 
     return_dict = {}
-    for thing_id in data.get(collection_name):
+    for thing_id in data:
         thing_doc_ref = db.collection(collection_name).document(thing_id)
         thing_doc = thing_doc_ref.get()
         if thing_doc.exists:
@@ -188,10 +208,14 @@ async def get_thing(thing, /, collection_name: str):
     return thing_doc.to_dict(), Response.OK
 
 
-async def set_thing(thing, /, collection_name: str):
+async def set_thing(thing, /, *args, collection_name: str):
     thing_doc_ref = db.collection(collection_name).document(thing)
     thing_doc = thing_doc_ref.get()
-    data = json2dict(request.data)
+    if args:
+        data = args[0]
+    else:
+        data = json2dict(request.data)
+
     if not thing_doc.exists:
         thing_doc_ref.set(data, merge=True)
         thing_doc = thing_doc_ref.get()
@@ -201,11 +225,15 @@ async def set_thing(thing, /, collection_name: str):
     return thing_doc.to_dict(), Response.OK
 
 
-async def update_thing(thing, /, collection_name: str):
+async def update_thing(thing, /, *args, collection_name: str):
     thing_doc_ref = db.collection(collection_name).document(thing)
     thing_doc = thing_doc_ref.get()
-    data = {k: v for k, v in json2dict(request.data).items() if
-            k in thing_doc.to_dict()} if thing_doc.exists else json2dict(request.data)
+    if args:
+        data = {k: v for k, v in args[0].items() if
+                k in thing_doc.to_dict()} if thing_doc.exists else args[0]
+    else:
+        data = {k: v for k, v in json2dict(request.data).items() if
+                k in thing_doc.to_dict()} if thing_doc.exists else json2dict(request.data)
     if not thing_doc.exists:
         thing_doc_ref.set(data, merge=True)
         thing_doc = thing_doc_ref.get()
@@ -240,8 +268,8 @@ async def delete_thing(thing, /, collection_name: str):
 
 # ####################### USER QUERY ########################
 
-@app.route('/users', methods=['GET'])
-async def get_users():
+@app.route('/api/users', methods=['GET'])
+async def get_users(*args):
     """
     Get all users' data if request body is empty, users' data in request body's key "users". If there are no users
     in the database, and empty dictionary and NO_CONTENT is returned, otherwise list of users with id as key and OK
@@ -249,10 +277,10 @@ async def get_users():
 
     :return:
     """
-    return await get_things(collection_name=USERS_COLLECTION)
+    return await get_things(*args, collection_name=USERS_COLLECTION)
 
 
-@app.route('/users/<user>', methods=['GET'])
+@app.route('/api/users/<user>', methods=['GET'])
 async def get_user(user):
     """
     Get one user's data. Return dictionary of user data and OK if exists, else NO_CONTENT
@@ -263,8 +291,8 @@ async def get_user(user):
     return await get_thing(user, collection_name=USERS_COLLECTION)
 
 
-@app.route('/users/<user>', methods=['POST', 'PUT'])
-async def set_user(user):
+@app.route('/api/users/<user>', methods=['POST', 'PUT'])
+async def set_user(user, *args):
     """
     Set user's value in request body's key: value accordingly, merge if exists.
 
@@ -273,34 +301,34 @@ async def set_user(user):
     :param user:
     :return:
     """
-    return await set_thing(user, collection_name=USERS_COLLECTION)
+    return await set_thing(user, *args, collection_name=USERS_COLLECTION)
 
 
-@app.route('/users/<user>', methods=['PATCH'])
-async def update_user(user):
+@app.route('/api/users/<user>', methods=['PATCH'])
+async def update_user(user, *args):
     """
     Update user's value in request body's key: value accordingly, merge if exists.
 
     :param user:
     :return:
     """
-    return await update_thing(user, collection_name=USERS_COLLECTION)
+    return await update_thing(user, *args, collection_name=USERS_COLLECTION)
 
 
-@app.route('/users', methods=['DELETE'])
+@app.route('/api/users', methods=['DELETE'])
 async def delete_users():
     return await delete_things(collection_name=USERS_COLLECTION)
 
 
-@app.route('/users/<user>', methods=['DELETE'])
+@app.route('/api/users/<user>', methods=['DELETE'])
 async def delete_user(user):
     return await delete_thing(user, collection_name=USERS_COLLECTION)
 
 
 # ####################### SEAT QUERY ########################
 
-@app.route('/seats', methods=['GET'])
-async def get_seats():
+@app.route('/api/seats', methods=['GET'])
+async def get_seats(*args):
     """
     Get all seats' data if request body is empty, seats' data in request body's key "seats". If there are no seats
     in the database, and empty dictionary and NO_CONTENT is returned, otherwise list of seats with id as key and OK
@@ -308,10 +336,10 @@ async def get_seats():
 
     :return:
     """
-    return await get_things(collection_name=SEATS_COLLECTION)
+    return await get_things(*args, collection_name=SEATS_COLLECTION)
 
 
-@app.route('/seats/<seat>', methods=['GET'])
+@app.route('/api/seats/<seat>', methods=['GET'])
 async def get_seat(seat):
     """
     Get one seat's data. Return dictionary of seat data and OK if exists, else NO_CONTENT
@@ -322,8 +350,8 @@ async def get_seat(seat):
     return await get_thing(seat, collection_name=SEATS_COLLECTION)
 
 
-@app.route('/seats/<seat>', methods=['POST', 'PUT'])
-async def set_seat(seat):
+@app.route('/api/seats/<seat>', methods=['POST', 'PUT'])
+async def set_seat(seat, *args):
     """
     Set seat's value in request body's key: value accordingly, merge if exists.
 
@@ -332,33 +360,33 @@ async def set_seat(seat):
     :param seat:
     :return:
     """
-    return await set_thing(seat, collection_name=SEATS_COLLECTION)
+    return await set_thing(seat, *args, collection_name=SEATS_COLLECTION)
 
 
-@app.route('/seats/<seat>', methods=['PATCH'])
-async def update_seat(seat):
+@app.route('/api/seats/<seat>', methods=['PATCH'])
+async def update_seat(seat, *args):
     """
     Update seat's value in request body's key: value accordingly, merge if exists.
 
     :param seat:
     :return:
     """
-    return await update_thing(seat, collection_name=SEATS_COLLECTION)
+    return await update_thing(seat, *args, collection_name=SEATS_COLLECTION)
 
 
-@app.route('/seats', methods=['DELETE'])
+@app.route('/api/seats', methods=['DELETE'])
 async def delete_seats():
     return await delete_things(collection_name=SEATS_COLLECTION)
 
 
-@app.route('/seats/<seat>', methods=['DELETE'])
+@app.route('/api/seats/<seat>', methods=['DELETE'])
 async def delete_seat(seat):
     return await delete_thing(seat, collection_name=SEATS_COLLECTION)
 
 
 # ####################### SHUTDOWN QUERY (BETA) ########################
 
-@app.route('/shutdown', methods=['GET'])
+@app.route('/api/shutdown', methods=['GET'])
 async def shutdown():
     passwd = request.args.get('auth')
     if passwd != 'haha':
@@ -374,6 +402,7 @@ def shutdown_server():
 # ####################### CONCURRENCY SETUP ########################
 
 async def background_handler(loop_f=background_tasks, interval=LOOP_INTERVAL):
+    await run_once_background_tasks()
     cmd_instance = Command()
     while True:
         await loop_f(cmd_instance)
