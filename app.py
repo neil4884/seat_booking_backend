@@ -331,6 +331,10 @@ async def shutdown():
         return {}, Response.UNAUTHORIZED
     return shutdown_server()
 
+@app.route('/')
+async def hello():
+    return 'It worked!', Response.OK
+
 
 def shutdown_server():
     # Currently do nothing...
