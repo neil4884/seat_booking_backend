@@ -20,7 +20,7 @@ import threading
 # Override slow loop interval
 # LOOP_2_INTERVAL = 2
 
-cred = credentials.Certificate(os.path.abspath(CREDENTIAL_PATH))
+cred = credentials.Certificate(os.path.join(os.path.dirname(__file__), CREDENTIAL_PATH))
 app_fb = fb.initialize_app(cred)
 db = firestore.client()
 app = Flask(__name__)
