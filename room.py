@@ -39,13 +39,19 @@ class Room:
         return
 
     def insert_user(self, user):
-        if user in self.__all_users:
+        if user in self.__all_seats:
             return False
-        self.__all_users.append(user)
+        if isinstance(user, list):
+            self.__all_users.extend(user)
+        else:
+            self.__all_users.append(user)
         return True
 
     def remove_user(self, user):
-        if user in self.__all_users:
+        if isinstance(user, list):
+            for u in user:
+                self.remove_user(u)
+        elif user in self.__all_users:
             self.__all_users.remove(user)
             return True
         return False
@@ -53,11 +59,17 @@ class Room:
     def occupy_seat(self, seat):
         if seat in self.__all_seats:
             return False
-        self.__all_seats.append(seat)
+        if isinstance(seat, list):
+            self.__all_seats.extend(seat)
+        else:
+            self.__all_seats.append(seat)
         return True
 
     def unoccupy_seat(self, seat):
-        if seat in self.__all_seats:
+        if isinstance(seat, list):
+            for s in seat:
+                self.unoccupy_seat(s)
+        elif seat in self.__all_seats:
             self.__all_seats.remove(seat)
             return True
         return False

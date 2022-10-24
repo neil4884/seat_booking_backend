@@ -27,7 +27,8 @@ app = Flask(__name__)
 f1_ocpd_seats = 0
 f2_ocpd_seats = 0
 all_ocpd_seats = 0
-my_library = room.Library() # Library with 2 floors, view usages in lib.
+my_library = room.Library()  # Library with 2 floors, view usages in lib.
+all_users = None
 
 
 # ####################### BACKEND COMMAND HERE ########################
@@ -78,11 +79,18 @@ class Command:
             return {}, Response.CREATED
         return {}, Response.BAD_REQUEST
 
-
     @staticmethod
     async def remove_user(user: str):
-        # todo remove from library (unoccupy seat and remove user)
         user_ref = (await get_user(user))[0]
+        if not user_ref:
+            return {}, Response.NO_CONTENT
+        seat = user_ref.get('current_seat_id')
+        if seat[:3] == 'F01':
+            my_library.floor_1.remove_user(user)
+            my_library.floor_1.unoccupy_seat(seat)
+        elif seat[:3] == 'F02':
+            my_library.floor_2.remove_user(user)
+            my_library.floor_2.unoccupy_seat(seat)
         await update_user(user, {
             'status': 0,
             'current_seat_id': ''
@@ -94,9 +102,23 @@ class Command:
         return {}, Response.OK
 
     @staticmethod
+    async def remove_users(users: list):
+        for user in users:
+            await Command.remove_user(user)
+        return {}, Response.OK
+
+    @staticmethod
     async def remove_seat(seat: str):
-        # todo remove from library (unoccupy seat and remove user)
         seat_ref = (await get_seat(seat))[0]
+        if not seat_ref:
+            return {}, Response.NO_CONTENT
+        user = seat_ref.get('seat_user')
+        if seat[:3] == 'F01':
+            my_library.floor_1.remove_user(user)
+            my_library.floor_1.unoccupy_seat(seat)
+        elif seat[:3] == 'F02':
+            my_library.floor_2.remove_user(user)
+            my_library.floor_2.unoccupy_seat(seat)
         await update_user(seat_ref.get('seat_user'), {
             'status': 0,
             'current_seat_id': ''
@@ -108,9 +130,15 @@ class Command:
         return {}, Response.OK
 
     @staticmethod
+    async def remove_seats(seats: list):
+        for seat in seats:
+            await Command.remove_seat(seat)
+        return {}, Response.OK
+
+    @staticmethod
     async def check_in(user: str):
         user_ref = (await get_user(user))[0]
-        if user_ref.get == 3:
+        if user_ref.get('status') == 3 and user_ref.get('current_seat_id'):
             seat_id = user_ref.get('current_seat_id')
             if seat_id[:3] == 'F01':
                 my_library.floor_1.insert_user(user)
@@ -141,9 +169,8 @@ class Command:
 
 
 async def run_once_background_tasks(*args, **kwargs):
-    # print('FAST AND SLOW THREAD STARTED! (SYNCED WITH FAST)')
-    # users_list = await get_users()
-    # print('\n'.join([str(user) for user, _ in users_list[0].items()]))
+    global all_users
+    all_users = [u for u in (await get_users)[0].keys()]
     return
 
 

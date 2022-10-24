@@ -1,4 +1,9 @@
-from app import *
+a = 0
 
+def change():
+    global a
+    a = 10
 
-print(get_users())
+print(a)
+change()
+print(a)
