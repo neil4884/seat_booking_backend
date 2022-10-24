@@ -184,6 +184,10 @@ async def run_cmd(command):
         pass
     elif command == 'check_out':
         pass
+    elif command == 'add_friend':
+        pass
+    elif command == 'remove_friend':
+        pass
 
     return {}, Response.BAD_REQUEST
 
