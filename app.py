@@ -1,8 +1,14 @@
+from json import tool
+from re import U
+from time import time
+from click import command
 from flask import Flask
 from flask import request
 from firebase_admin import credentials
 from firebase_admin import firestore
-from tools import Response
+from itsdangerous import TimedSerializer
+from pyparsing import matchOnlyAtCol
+from tools import Response, time_now
 from tools import json2dict
 from config import *
 import flask
@@ -51,6 +57,7 @@ class Command:
         user_ref = (await get_user(user))[0]
         user_status = user_ref.get('status')
         if user_status == 0:
+            my_library.insert_booked_user(user,tools.time_now())
             await update_user(user, {
                 'status': 3,
                 'current_seat_id': seat,
@@ -75,6 +82,10 @@ class Command:
             if user_status == 1:
                 # Automatically change seat and re-check in (user already checked in)
                 await Command.check_in(user)
+            elif user_status == 2:
+                my_library.insert_extend_user(user,tools.time_now(),user_ref.get("extend_time")) ##EXTEND_TIME IS DURATION OF THAT TIME WAS EXTENDED// TIME STAMP OR INT?
+            elif user_status == 3:
+                my_library.insert_booked_user(user,tools.time_now())
             return {}, Response.CREATED
         return {}, Response.BAD_REQUEST
 
@@ -83,6 +94,18 @@ class Command:
     async def remove_user(user: str):
         # todo remove from library (unoccupy seat and remove user)
         user_ref = (await get_user(user))[0]
+        seat_id = user_ref.get('current_seat_id')
+
+        my_library.remove_extend_user(user)
+        my_library.remove_booked_user(user)
+
+        if seat_id[:3]=="F01":
+            my_library.floor_1.remove_user(user)
+            my_library.floor_1.unoccupy_seat(seat_id)
+        elif seat_id[:3]=="F02":
+            my_library.floor_2.remove_user(user)
+            my_library.floor_2.unoccupy_seat(seat_id)
+
         await update_user(user, {
             'status': 0,
             'current_seat_id': ''
@@ -91,12 +114,26 @@ class Command:
             'status': 0,
             'seat_user': ''
         })
+        
+        
         return {}, Response.OK
 
     @staticmethod
     async def remove_seat(seat: str):
         # todo remove from library (unoccupy seat and remove user)
         seat_ref = (await get_seat(seat))[0]
+        user = seat_ref.get('seat_user')
+
+        my_library.remove_extend_user(user)
+        my_library.remove_booked_user(user)
+
+        if seat[:3] == "F01":
+            my_library.floor_1.remove_user(user)
+            my_library.floor_1.unoccupy_seat(seat)
+        elif seat[:3] == "F02":
+            my_library.floor_2.remove_user(user)
+            my_library.floor_2.unoccupy_seat(seat)
+
         await update_user(seat_ref.get('seat_user'), {
             'status': 0,
             'current_seat_id': ''
@@ -112,6 +149,8 @@ class Command:
         user_ref = (await get_user(user))[0]
         if user_ref.get == 3:
             seat_id = user_ref.get('current_seat_id')
+            ##my_library.remove_extend_user(user)
+            my_library.remove_booked_user(user)
             if seat_id[:3] == 'F01':
                 my_library.floor_1.insert_user(user)
                 my_library.floor_1.occupy_seat(seat_id)
@@ -136,7 +175,24 @@ class Command:
             pass
         return {}, Response.BAD_REQUEST
 
+    @staticmethod
+    async def check_book_timeout():
+        for user,booked_time in my_library.booked_users:
+            booked_datetime = tools.to_datetime(booked_time)
+            time_diff = tools.time_now()-booked_datetime
+            if time_diff.total_seconds() > 300:
+                my_library.remove_booked_user(user)
+                Command.remove_user(user)
 
+    @staticmethod
+    async def check_extend_timeout():
+        for user,extend_prop in my_library.extend_users:
+            extend_datetime = tools.to_datetime(extend_prop[0])
+            time_diff = tools.time_now()-extend_datetime
+            if (time_diff.total_seconds()>extend_prop[1]):
+                my_library.remove_extend_user(user)
+                Command.remove_user(user)
+                
 # ####################### INSERT BACKGROUND TASKS HERE, E.G. CHECKING SOMETHING EVERY 1 S ########################
 
 

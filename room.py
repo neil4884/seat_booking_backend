@@ -1,3 +1,8 @@
+from operator import truediv
+import re
+from tools import time_now
+
+
 class Room:
     def __init__(self) :
         self.__all_users = []
@@ -37,6 +42,7 @@ class Room:
     def all_seats(self, value):
         self.__all_seats = value
         return
+
 
     def insert_user(self, user):
         if user in self.__all_users:
@@ -80,6 +86,8 @@ class Library:
             '1': new_room_1,
             '2': new_room_2
         }
+        self.__extend_users = dict()
+        self.__booked_users = dict()
         return
 
     @property
@@ -101,6 +109,52 @@ class Library:
     @property
     def occupied_seat_size(self):
         return sum([e.occupied_seat_size for e in self.__floors.values()])
+
+    @property
+    def booked_user_size(self):
+        return len(self.__booked_users)
+    
+    @property
+    def extend_user_size(self):
+        return len(self.__extend_users)
+
+    @property
+    def extend_users(self):
+        return self.__extend_users
+    
+    @extend_users.setter
+    def extend_users(self,value):
+        self.__extend_users = value
+
+    @property
+    def booked_users(self):
+        return self.__booked_users
+    
+    @booked_users.setter
+    def booked_users(self,value):
+        self.__booked_users = value
+
+    def insert_booked_user(self, user, booked_time):
+        if user in self.__booked_users:
+            return False
+        self.__booked_users[user] = booked_time
+
+    def remove_booked_user(self, user):
+        if user in self.__booked_users:
+            self.__booked_users.pop(user)
+            return True
+        return False
+
+    def insert_extend_user(self, user, extend_time, duration):
+        if user in self.__extend_users:
+            return False
+        self.__extend_users[user] = (extend_time,duration)
+    
+    def remove_extend_user(self,user):
+        if user in self.__extend_users:
+            self.__extend_users.pop(user)
+            return True
+        return False
 
 
 if __name__ == '__main__':
