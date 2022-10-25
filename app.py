@@ -1,5 +1,9 @@
+from enum import unique
 from json import tool
-from re import U
+from operator import truediv
+from random import random
+from re import A, U
+import re
 from time import time
 from click import command
 from flask import Flask
@@ -8,7 +12,7 @@ from firebase_admin import credentials
 from firebase_admin import firestore
 from itsdangerous import TimedSerializer
 from pyparsing import matchOnlyAtCol
-from tools import Response, time_now
+from tools import Response, random_code, time_now
 from tools import json2dict
 from config import *
 import flask
@@ -34,6 +38,7 @@ f1_ocpd_seats = 0
 f2_ocpd_seats = 0
 all_ocpd_seats = 0
 my_library = room.Library()  # Library with 2 floors, view usages in lib.
+user_unique_codes = dict()
 all_users = None
 
 
@@ -211,6 +216,43 @@ class Command:
             if (time_diff.total_seconds()>extend_prop[1]):
                 my_library.remove_extend_user(user)
                 Command.remove_user(user)
+
+    @staticmethod
+    async def set_user_unique_code(user,user_ref):
+        if user in user_unique_codes:
+            return False
+        if (user_ref).get('unique_code') != '':
+            return False
+        random_code = tools.random_code()
+        while random_code in user_unique_codes:
+            random_code = tools.random_code()
+        await set_user(user,{'unique_code':random_code})
+        user_unique_codes[random_code] = user
+        return True
+        
+    @staticmethod
+    async def set_allusers_unique_code():
+        all_users = (await get_users())[0]
+        for user,user_ref in all_users:
+            Command.set_user_unique_code(user,user_ref)
+
+
+    @staticmethod
+    async def add_friend(user,unique_code):
+        if unique_code not in user_unique_codes:
+            return False
+        user_ref = (await get_users(user))[0]
+        friend_id = user_unique_codes[unique_code]
+        if friend_id == user:
+            return False
+        if friend_id in user_ref.get('friends'):
+            return False
+        friend_list = user_ref.get('friends')
+        friend_list.append(friend_id)
+        await update_user(user,{'friends':friend_list})
+        return True
+
+               
                 
 # ####################### INSERT BACKGROUND TASKS HERE, E.G. CHECKING SOMETHING EVERY 1 S ########################
 
