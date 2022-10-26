@@ -156,10 +156,10 @@ class Library:
             return True
         return False
 
-    def insert_extend_user(self, user, extend_time, duration):
+    def insert_extend_user(self, user, start_time, extend_time):
         if user in self.__extend_users:
             return False
-        self.__extend_users[user] = (extend_time, duration)
+        self.__extend_users[user] = (start_time, extend_time)
 
     def remove_extend_user(self, user):
         if user in self.__extend_users:

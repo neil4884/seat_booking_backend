@@ -79,8 +79,11 @@ class Command:
                 await Command.check_in(user)
             elif user_status == 2:
                 # EXTEND_TIME IS DURATION OF THAT TIME WAS EXTENDED// TIME STAMP OR INT?
-                my_library.insert_extend_user(user, tools.time_now(), user_ref.get('extend_time'))
+                my_library.remove_extend_user(user)
+                time_left = user_ref.get('extend_time')-(tools.time_now()-tools.to_datetime(user_ref.get('start_time')))
+                await Command.extend_time(user,time_left)
             elif user_status == 3:
+                my_library.remove_booked_user(user)
                 my_library.insert_booked_user(user, tools.time_now())
             return {}, Response.CREATED
         return {}, Response.BAD_REQUEST
@@ -202,9 +205,11 @@ class Command:
                 await Command.remove_user(user)
 
     @staticmethod
-    async def extend_time(extend_time):
+    async def extend_time(user,extend_time):
         start_time = tools.time_now()
-        await set_user({'extend_time':start_time})
+        my_library.insert_extend_user(user,start_time,extend_time)
+        await update_user(user,{'extend_time':extend_time,
+                            'temp_time':start_time})
         return {'timeout':calculate_timeout(start_time,extend_time)},Response.OK
         
 
@@ -286,7 +291,7 @@ async def run_cmd(command):
         return {'unique_id': tools.generate_hash(q.get('user'))}, Response.OK
     elif command == 'add_friend':
         if tools.generate_hash(q.get('friend')) == q.get('unique_id'):
-            return await append_to_thing('friend', q.get('friend'), collection_name=USERS_COLLECTION)
+            return await append_to_thing(q.get('user'), q.get('friend'), collection_name=USERS_COLLECTION)
     elif command == 'remove_friend':
         return await remove_from_thing(q.get('user'), 'friends', *q.get('friends'), collection_name=USERS_COLLECTION)
     elif command == 'get_occupied_floor1':
@@ -294,7 +299,7 @@ async def run_cmd(command):
     elif command == 'get_occupied_floor2':
         return await Command.get_occupied(2)
     elif command == 'get_extend_timeout':
-        return await Command.extend_time(q.get('extend_time'))
+        return await Command.extend_time(q.get('user'),q.get('extend_time'))
 
     return {}, Response.BAD_REQUEST
 
