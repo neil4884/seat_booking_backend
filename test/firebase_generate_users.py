@@ -24,31 +24,31 @@ list_users = [
 ]
 
 if __name__ == '__main__':
-    for user_id in list_users:
-        name = random.choice(names) + ' ' + random.choice(names)
-        u = {
-            'id': user_id,
-            'name': name,
-            'friends': [friend for friend in random.choices(list_users, k=4) if friend != user_id],
-            'status': 0,
-            'current_seat_id': '',
-            'booked_time': datetime.datetime.now(),
-            'temp_time': '',
-            'extend_time': '',
-            'caption': '',
-            'whatsup': ''
-        }
-        user_doc_ref = db.collection('users').document(user_id)
-        user_doc_ref.set(u)
-        print(u)
-
-    # for seat_id in list_seats:
-    #     s = {
-    #         'id': seat_id,
+    # for user_id in list_users:
+    #     name = random.choice(names) + ' ' + random.choice(names)
+    #     u = {
+    #         'id': user_id,
+    #         'name': name,
+    #         'friends': [friend for friend in random.choices(list_users, k=4) if friend != user_id],
     #         'status': 0,
-    #         'seat_user': '',
+    #         'current_seat_id': '',
     #         'booked_time': datetime.datetime.now(),
+    #         'temp_time': '',
+    #         'extend_time': '',
+    #         'caption': '',
+    #         'whatsup': ''
     #     }
-    #     user_doc_ref = db.collection('seat').document(seat_id)
-    #     user_doc_ref.set(s)
-    #     print(s)
+    #     user_doc_ref = db.collection('users').document(user_id)
+    #     user_doc_ref.set(u)
+    #     print(u)
+
+    for seat_id in list_seats:
+        s = {
+            'id': seat_id,
+            'status': 0,
+            'seat_user': '',
+            'booked_time': datetime.datetime.now(),
+        }
+        user_doc_ref = db.collection('seats').document(seat_id)
+        user_doc_ref.set(s)
+        print(s)

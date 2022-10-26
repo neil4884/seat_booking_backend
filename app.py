@@ -54,7 +54,7 @@ class Command:
         seat_ref = (await get_seat(seat))[0]
         user_status = user_ref.get('status')
         if (seat_ref.get('status') != 0):
-            return {},Response.BAD_REQUEST
+            return {}, Response.BAD_REQUEST
         if user_status == 0:
             my_library.insert_booked_user(user, tools.time_now())
             my_library.insert_booked_seat(seat)
@@ -85,8 +85,9 @@ class Command:
             elif user_status == 2:
                 # EXTEND_TIME IS DURATION OF THAT TIME WAS EXTENDED// TIME STAMP OR INT?
                 my_library.remove_extend_user(user)
-                time_left = user_ref.get('extend_time')-(tools.time_now()-tools.to_datetime(user_ref.get('start_time')))
-                await Command.extend_time(user,time_left)
+                time_left = user_ref.get('extend_time') - (
+                        tools.time_now() - tools.to_datetime(user_ref.get('start_time')))
+                await Command.extend_time(user, time_left)
             elif user_status == 3:
                 my_library.remove_booked_seat(old_seat)
                 my_library.insert_booked_seat(seat)
@@ -216,19 +217,18 @@ class Command:
                 await Command.remove_user(user)
 
     @staticmethod
-    async def extend_time(user,extend_time):
+    async def extend_time(user, extend_time):
         start_time = tools.time_now()
-        my_library.insert_extend_user(user,start_time,extend_time)
-        await update_user(user,{'extend_time':extend_time,
-                            'temp_time':start_time})
-        return {'timeout':calculate_timeout(start_time,extend_time)},Response.OK
-        
+        my_library.insert_extend_user(user, start_time, extend_time)
+        await update_user(user, {'extend_time': extend_time,
+                                 'temp_time': start_time})
+        return {'timeout': calculate_timeout(start_time, extend_time)}, Response.OK
 
     @staticmethod
     async def get_occupied(floor):
         occupied_seats = dict()
         if floor == 1:
-            for seat in my_library.floor_1.all_seats+my_library.booked_seats():
+            for seat in my_library.floor_1.all_seats + my_library.booked_seats():
                 seat_ref = (await get_seat(seat))[0]
                 seat_detail = dict()
                 seat_detail['caption'] = seat_ref.get('caption')
@@ -236,7 +236,7 @@ class Command:
                 occupied_seats[seat] = seat_detail
             return occupied_seats, Response.OK
         elif floor == 2:
-            for seat in my_library.floor_2.all_seats+my_library.booked_seats():
+            for seat in my_library.floor_2.all_seats + my_library.booked_seats():
                 seat_ref = (await get_seat(seat))[0]
                 seat_detail = dict()
                 seat_detail['caption'] = seat_ref.get('caption')
@@ -310,7 +310,7 @@ async def run_cmd(command):
     elif command == 'get_occupied_floor2':
         return await Command.get_occupied(2)
     elif command == 'get_extend_timeout':
-        return await Command.extend_time(q.get('user'),q.get('extend_time'))
+        return await Command.extend_time(q.get('user'), q.get('extend_time'))
 
     return {}, Response.BAD_REQUEST
 
