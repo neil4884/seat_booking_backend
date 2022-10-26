@@ -53,7 +53,7 @@ class Command:
         old_seat = user_ref.get('current_seat_id')
         seat_ref = (await get_seat(seat))[0]
         user_status = user_ref.get('status')
-        if (seat_ref.get('status') != 0):
+        if seat_ref.get('status') != 0:
             return {}, Response.BAD_REQUEST
         if user_status == 0:
             my_library.insert_booked_user(user, tools.time_now())
@@ -103,7 +103,7 @@ class Command:
 
         my_library.remove_extend_user(user)
         my_library.remove_booked_user(user)
-        my_library.remove_booked_seat(seat)
+        my_library.remove_booked_seat(seat_id)
 
         if not user_ref:
             return {}, Response.NO_CONTENT
