@@ -37,5 +37,5 @@ def generate_hash(passwd):
     passwd_t = 'k'.join([RAND_MAP.get(e) if e in RAND_MAP.keys() else e for e in passwd])
     return hashlib.sha1(passwd_t.encode()).hexdigest()[::2]
 
-def calculate_timeout(extend_time):
-    return time_now()+datetime.timedelta(seconds=extend_time)
+def calculate_timeout(start_time,extend_time):
+    return start_time+datetime.timedelta(seconds=extend_time)
