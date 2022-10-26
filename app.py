@@ -286,8 +286,10 @@ async def run_cmd(command):
         return await append_to_thing('friend', q.get('friends'), collection_name=USERS_COLLECTION)
     elif command == 'remove_friend':
         return await remove_from_thing('friend', q.get('friends'), collection_name=USERS_COLLECTION)
-    elif command == 'get_occupied':
-        return None
+    elif command == 'get_occupied_floor1':
+        return await Command.get_occupied(1)
+    elif command == 'get_occupied_floor2':
+        return await Command.get_occupied(2)
 
     return {}, Response.BAD_REQUEST
 
