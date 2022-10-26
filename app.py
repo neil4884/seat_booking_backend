@@ -164,7 +164,7 @@ class Command:
             seat_id = user_ref.get('current_seat_id')
             # my_library.remove_extend_user(user)
             my_library.remove_booked_user(user)
-            if seat_id[:3] == 'F01':
+            if seat_id[:2] == 'F1':
                 my_library.floor_1.insert_user(user)
                 my_library.floor_1.occupy_seat(seat_id)
             else:
