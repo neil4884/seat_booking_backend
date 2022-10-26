@@ -6,6 +6,9 @@ import random
 import hashlib
 
 
+RAND_MAP = {k: v for k, v in zip('0123456789', 'oithfspven')}
+
+
 class Response:
     OK = 200
     CREATED = 201
@@ -50,6 +53,6 @@ def random_unique_id(length):
     return password
 
 
-def random_secret(passwd, length=6):
-    salt = hashlib.
-    hashlib.sha256(passwd.encode())
+def generate_hash(passwd):
+    passwd_t = 'k'.join([RAND_MAP.get(e) if e in RAND_MAP.keys() else e for e in passwd])
+    return hashlib.sha1(passwd_t.encode()).hexdigest()[::2]
