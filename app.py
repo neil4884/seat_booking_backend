@@ -2,7 +2,7 @@ from flask import Flask
 from flask import request
 from firebase_admin import credentials
 from firebase_admin import firestore
-from tools import Response
+from tools import Response, calculate_timeout
 from tools import json2dict
 from config import *
 import flask
@@ -202,6 +202,13 @@ class Command:
                 await Command.remove_user(user)
 
     @staticmethod
+    async def extend_time(extend_time):
+        start_time = tools.time_now()
+        await set_user({'extend_time':start_time})
+        return {'timeout':calculate_timeout(start_time,extend_time)},Response.OK
+        
+
+    @staticmethod
     async def get_occupied(floor):
         occupied_seats = dict()
         if floor == 1:
@@ -286,6 +293,8 @@ async def run_cmd(command):
         return await Command.get_occupied(1)
     elif command == 'get_occupied_floor2':
         return await Command.get_occupied(2)
+    elif command == 'get_extend_timeout':
+        return await Command.extend_time(q.get('extend_time'))
 
     return {}, Response.BAD_REQUEST
 

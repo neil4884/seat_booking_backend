@@ -1,6 +1,8 @@
 from google.api_core.datetime_helpers import DatetimeWithNanoseconds
 import json
 import datetime
+import string
+import random
 import hashlib
 
 
@@ -34,3 +36,6 @@ def time_now():
 def generate_hash(passwd):
     passwd_t = 'k'.join([RAND_MAP.get(e) if e in RAND_MAP.keys() else e for e in passwd])
     return hashlib.sha1(passwd_t.encode()).hexdigest()[::2]
+
+def calculate_timeout(extend_time):
+    return time_now()+datetime.timedelta(seconds=extend_time)
