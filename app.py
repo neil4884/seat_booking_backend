@@ -239,13 +239,12 @@ async def run_cmd(command):
     :param command:
     :return:
     """
-    query_args = request.args.get('args')
-    query = [] if not query_args or query_args is None else query_args.strip().split(',')
-    del query_args
+    q = json2dict(request.data)
+
     if command == 'get_all_users':
         return await get_users()
     elif command == 'check_in':
-        pass
+        return await Command.check_in(q.get('user'))
     elif command == 'check_out':
         pass
     elif command == 'add_friend':
