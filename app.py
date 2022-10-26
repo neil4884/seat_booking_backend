@@ -1,7 +1,9 @@
+from http.cookies import BaseCookie
 from flask import Flask
 from flask import request
 from firebase_admin import credentials
 from firebase_admin import firestore
+from requests import ReadTimeout
 from tools import Response, time_now
 from tools import json2dict
 from config import *
@@ -243,10 +245,20 @@ async def run_cmd(command):
 
     if command == 'get_all_users':
         return await get_users()
+    elif command == 'book':
+        return Command.book(q.get('user'),q.get('seat'))
+    elif command == 'remove_all_user':
+        return Command.remove_users()
+    elif command == 'remove_user':
+        return Command.remove_user(q.get('user'))
+    elif command == 'remove_all_seats':
+        return Command.remove_seats
+    elif command == 'remove_seat':
+        return Command.remove_seat(q.get('seat'))
     elif command == 'check_in':
-        return await Command.check_in(q.get('user'))
+        return Command.check_in(q.get('user'))
     elif command == 'check_out':
-        pass
+        return Command.check_out(q.get('user'),q.get('seat'))
     elif command == 'add_friend':
         pass
     elif command == 'remove_friend':
