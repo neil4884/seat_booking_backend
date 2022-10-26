@@ -130,10 +130,10 @@ class Command:
         if not seat_ref:
             return {}, Response.NO_CONTENT
         user = seat_ref.get('seat_user')
-        if seat[:3] == 'F01':
+        if seat[:2] == 'F1':
             my_library.floor_1.remove_user(user)
             my_library.floor_1.unoccupy_seat(seat)
-        elif seat[:3] == 'F02':
+        elif seat[:2] == 'F2':
             my_library.floor_2.remove_user(user)
             my_library.floor_2.unoccupy_seat(seat)
         user = seat_ref.get('seat_user')
