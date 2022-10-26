@@ -101,10 +101,10 @@ class Command:
         if not user_ref:
             return {}, Response.NO_CONTENT
         seat = user_ref.get('current_seat_id')
-        if seat[:3] == 'F01':
+        if seat[:2] == 'F1':
             my_library.floor_1.remove_user(user)
             my_library.floor_1.unoccupy_seat(seat)
-        elif seat[:3] == 'F02':
+        elif seat[:2] == 'F2':
             my_library.floor_2.remove_user(user)
             my_library.floor_2.unoccupy_seat(seat)
         await update_user(user, {
@@ -233,7 +233,8 @@ class Command:
 
 async def run_once_background_tasks(*args, **kwargs):
     global all_users
-    all_users = [u for u in (await get_users)[0].keys()]
+    co_user = await get_users()
+    all_users = [u for u in co_user[0].keys()]
     return
 
 
@@ -270,15 +271,15 @@ async def run_cmd(command):
     if command == 'get_all_users':
         return await get_users()
     elif command == 'book':
-        return Command.book(q.get('user'), q.get('seat'))
+        return await Command.book(q.get('user'), q.get('seat'))
     elif command == 'remove_user':
-        return Command.remove_user(q.get('user'))
+        return await Command.remove_user(q.get('user'))
     elif command == 'remove_seat':
-        return Command.remove_seat(q.get('seat'))
+        return await Command.remove_seat(q.get('seat'))
     elif command == 'check_in':
-        return Command.check_in(q.get('user'))
+        return await Command.check_in(q.get('user'))
     elif command == 'check_out':
-        return Command.check_out(q.get('user'), q.get('seat'))
+        return await Command.check_out(q.get('user'), q.get('seat'))
     elif command == 'get_unique_id':
         return {'unique_id': tools.generate_hash(q.get('user'))}, Response.OK
     elif command == 'add_friend':
