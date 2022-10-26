@@ -1,8 +1,6 @@
 from google.api_core.datetime_helpers import DatetimeWithNanoseconds
 import json
 import datetime
-import string
-import random
 import hashlib
 
 
