@@ -15,17 +15,18 @@ db = firestore.client()
 
 if __name__ == '__main__':
     for k in range(1, 81):
-        id = '643{}21'.format(str(k).zfill(5))
+        sid = '643{}21'.format(str(k).zfill(5))
         name = random.choice(names) + ' ' + random.choice(names)
         u = {
-            'id': id,
+            'id': sid,
             'name': name,
             'friends': ['643{}21'.format(str(i).zfill(5)) for i in random.choices(range(1, 81), k=8) if i != k],
             'status': 0,
             'current_seat_id': '',
             'booked_time': datetime.datetime.now(),
-            'temp_time': datetime.datetime.now()
+            'temp_time': datetime.datetime.now(),
+            'unique_id': hash(sid)
         }
-        user_doc_ref = db.collection('users').document(id)
+        user_doc_ref = db.collection('users').document(sid)
         user_doc_ref.set(u)
         print(u)

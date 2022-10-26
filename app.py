@@ -1,18 +1,8 @@
-from enum import unique
-from json import tool
-from operator import truediv
-from random import random
-from re import A, U
-import re
-from time import time
-from click import command
 from flask import Flask
 from flask import request
 from firebase_admin import credentials
 from firebase_admin import firestore
-from itsdangerous import TimedSerializer
-from pyparsing import matchOnlyAtCol
-from tools import Response, random_code, time_now
+from tools import Response, time_now
 from tools import json2dict
 from config import *
 import flask
@@ -38,7 +28,6 @@ f1_ocpd_seats = 0
 f2_ocpd_seats = 0
 all_ocpd_seats = 0
 my_library = room.Library()  # Library with 2 floors, view usages in lib.
-user_unique_codes = dict()
 all_users = None
 
 
@@ -63,7 +52,7 @@ class Command:
         user_ref = (await get_user(user))[0]
         user_status = user_ref.get('status')
         if user_status == 0:
-            my_library.insert_booked_user(user,tools.time_now())
+            my_library.insert_booked_user(user, tools.time_now())
             await update_user(user, {
                 'status': 3,
                 'current_seat_id': seat,
@@ -89,9 +78,10 @@ class Command:
                 # Automatically change seat and re-check in (user already checked in)
                 await Command.check_in(user)
             elif user_status == 2:
-                my_library.insert_extend_user(user,tools.time_now(),user_ref.get("extend_time")) ##EXTEND_TIME IS DURATION OF THAT TIME WAS EXTENDED// TIME STAMP OR INT?
+                # EXTEND_TIME IS DURATION OF THAT TIME WAS EXTENDED// TIME STAMP OR INT?
+                my_library.insert_extend_user(user, tools.time_now(), user_ref.get('extend_time'))
             elif user_status == 3:
-                my_library.insert_booked_user(user,tools.time_now())
+                my_library.insert_booked_user(user, tools.time_now())
             return {}, Response.CREATED
         return {}, Response.BAD_REQUEST
 
@@ -120,13 +110,7 @@ class Command:
             'status': 0,
             'seat_user': ''
         })
-        
-        return {}, Response.OK
 
-    @staticmethod
-    async def remove_users(users: list):
-        for user in users:
-            await Command.remove_user(user)
         return {}, Response.OK
 
     @staticmethod
@@ -173,7 +157,7 @@ class Command:
         user_ref = (await get_user(user))[0]
         if user_ref.get('status') == 3 and user_ref.get('current_seat_id'):
             seat_id = user_ref.get('current_seat_id')
-            ##my_library.remove_extend_user(user)
+            # my_library.remove_extend_user(user)
             my_library.remove_booked_user(user)
             if seat_id[:3] == 'F01':
                 my_library.floor_1.insert_user(user)
@@ -201,59 +185,23 @@ class Command:
 
     @staticmethod
     async def check_book_timeout():
-        for user,booked_time in my_library.booked_users:
+        for user, booked_time in my_library.booked_users:
             booked_datetime = tools.to_datetime(booked_time)
-            time_diff = tools.time_now()-booked_datetime
+            time_diff = tools.time_now() - booked_datetime
             if time_diff.total_seconds() > 300:
                 my_library.remove_booked_user(user)
-                Command.remove_user(user)
+                await Command.remove_user(user)
 
     @staticmethod
     async def check_extend_timeout():
-        for user,extend_prop in my_library.extend_users:
+        for user, extend_prop in my_library.extend_users:
             extend_datetime = tools.to_datetime(extend_prop[0])
-            time_diff = tools.time_now()-extend_datetime
-            if (time_diff.total_seconds()>extend_prop[1]):
+            time_diff = tools.time_now() - extend_datetime
+            if time_diff.total_seconds() > extend_prop[1]:
                 my_library.remove_extend_user(user)
-                Command.remove_user(user)
-
-    @staticmethod
-    async def set_user_unique_code(user,user_ref):
-        if user in user_unique_codes:
-            return False
-        if (user_ref).get('unique_code') != '':
-            return False
-        random_code = tools.random_code()
-        while random_code in user_unique_codes:
-            random_code = tools.random_code()
-        await set_user(user,{'unique_code':random_code})
-        user_unique_codes[random_code] = user
-        return True
-        
-    @staticmethod
-    async def set_allusers_unique_code():
-        all_users = (await get_users())[0]
-        for user,user_ref in all_users:
-            Command.set_user_unique_code(user,user_ref)
+                await Command.remove_user(user)
 
 
-    @staticmethod
-    async def add_friend(user,unique_code):
-        if unique_code not in user_unique_codes:
-            return False
-        user_ref = (await get_users(user))[0]
-        friend_id = user_unique_codes[unique_code]
-        if friend_id == user:
-            return False
-        if friend_id in user_ref.get('friends'):
-            return False
-        friend_list = user_ref.get('friends')
-        friend_list.append(friend_id)
-        await update_user(user,{'friends':friend_list})
-        return True
-
-               
-                
 # ####################### INSERT BACKGROUND TASKS HERE, E.G. CHECKING SOMETHING EVERY 1 S ########################
 
 
@@ -306,6 +254,12 @@ async def run_cmd(command):
         pass
 
     return {}, Response.BAD_REQUEST
+
+
+@app.route('/api/auth/secret/<user>', methods=['GET'])
+async def get_secret(user):
+
+    return {}, Response.UNAUTHORIZED
 
 
 # ####################### TEMPLATE FOR THING QUERY ########################
