@@ -216,7 +216,7 @@ class Command:
                 seat_detail['caption'] = seat_ref.get('caption')
                 seat_detail['whatsup'] = seat_ref.get('whatsup')
                 occupied_seats[seat] = seat_detail
-            return seat_detail,Response.OK
+            return occupied_seats, Response.OK
         elif floor == 2:
             for seat in my_library.floor_2.all_seats:
                 seat_ref = (await get_seat(seat))[0]
@@ -224,8 +224,9 @@ class Command:
                 seat_detail['caption'] = seat_ref.get('caption')
                 seat_detail['whatsup'] = seat_ref.get('whatsup')
                 occupied_seats[seat] = seat_detail
-            return seat_detail,Response.OK
+            return occupied_seats, Response.OK
         return {}, Response.BAD_REQUEST
+
 
 # ####################### INSERT BACKGROUND TASKS HERE, E.G. CHECKING SOMETHING EVERY 1 S ########################
 
@@ -282,10 +283,10 @@ async def run_cmd(command):
     elif command == 'get_unique_id':
         return {'unique_id': tools.generate_hash(q.get('user'))}, Response.OK
     elif command == 'add_friend':
-        if (tools.generate_hash(q.get('friend')) == q.get('unique_id')):
+        if tools.generate_hash(q.get('friend')) == q.get('unique_id'):
             return await append_to_thing('friend', q.get('friend'), collection_name=USERS_COLLECTION)
     elif command == 'remove_friend':
-        return await remove_from_thing('friend', q.get('friend'), collection_name=USERS_COLLECTION)
+        return await remove_from_thing(q.get('user'), 'friends', *q.get('friends'), collection_name=USERS_COLLECTION)
     elif command == 'get_occupied_floor1':
         return await Command.get_occupied(1)
     elif command == 'get_occupied_floor2':
@@ -386,20 +387,20 @@ async def delete_thing(thing, /, collection_name: str):
     return thing_doc.to_dict(), Response.OK
 
 
-async def append_to_thing(thing, /, things_to_append, collection_name: str):
+async def append_to_thing(thing, key, /, *things_to_append, collection_name: str):
     thing_doc_ref = db.collection(collection_name).document(thing)
     if not things_to_append:
         return {}, Response.NO_CONTENT
-    thing_doc_ref.update({thing: firestore.ArrayUnion(things_to_append)})
-    return {thing: things_to_append}, Response.OK
+    thing_doc_ref.update({key: firestore.ArrayUnion(things_to_append)})
+    return {key: things_to_append}, Response.OK
 
 
-async def remove_from_thing(thing, /, things_to_remove, collection_name: str):
+async def remove_from_thing(thing, key, /, *things_to_remove, collection_name: str):
     thing_doc_ref = db.collection(collection_name).document(thing)
     if not things_to_remove:
         return {}, Response.NO_CONTENT
-    thing_doc_ref.update({thing: firestore.ArrayRemove(things_to_remove)})
-    return {thing: things_to_remove}, Response.OK
+    thing_doc_ref.update({key: firestore.ArrayRemove(things_to_remove)})
+    return {key: things_to_remove}, Response.OK
 
 
 # ####################### USER QUERY ########################
