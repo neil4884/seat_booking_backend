@@ -99,6 +99,7 @@ class Library:
         }
         self.__extend_users = dict()
         self.__booked_users = dict()
+        self.__booked_seats = []
         return
 
     @property
@@ -126,6 +127,10 @@ class Library:
         return len(self.__booked_users)
 
     @property
+    def booked_seat_size(self):
+        return len(self.__booked_seats)
+
+    @property
     def extend_user_size(self):
         return len(self.__extend_users)
 
@@ -145,10 +150,19 @@ class Library:
     def booked_users(self, value):
         self.__booked_users = value
 
+    @property
+    def booked_seats(self):
+        return self.__booked_seats
+
+    @booked_seats.setter
+    def booked_seats(self, value):
+        self.__booked_seats = value
+
     def insert_booked_user(self, user, booked_time):
         if user in self.__booked_users:
             return False
         self.__booked_users[user] = booked_time
+        return True
 
     def remove_booked_user(self, user):
         if user in self.__booked_users:
@@ -156,10 +170,23 @@ class Library:
             return True
         return False
 
+    def insert_booked_seat(self, seat):
+        if seat in self.__booked_seats:
+            return False
+        self.__booked_seats.append(seat)
+        return True
+
+    def remove_booked_seat(self, seat):
+        if seat in self.__booked_users:
+            self.__booked_seats.remove(seat)
+            return True
+        return False
+
     def insert_extend_user(self, user, start_time, extend_time):
         if user in self.__extend_users:
             return False
         self.__extend_users[user] = (start_time, extend_time)
+        return True
 
     def remove_extend_user(self, user):
         if user in self.__extend_users:

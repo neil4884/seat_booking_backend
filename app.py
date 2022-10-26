@@ -50,9 +50,14 @@ class Command:
     @staticmethod
     async def book(user: str, seat: str):
         user_ref = (await get_user(user))[0]
+        old_seat = user_ref.get('current_seat_id')
+        seat_ref = (await get_seat(seat))[0]
         user_status = user_ref.get('status')
+        if (seat_ref.get('status') != 0):
+            return {},Response.BAD_REQUEST
         if user_status == 0:
             my_library.insert_booked_user(user, tools.time_now())
+            my_library.insert_booked_seat(seat)
             await update_user(user, {
                 'status': 3,
                 'current_seat_id': seat,
@@ -83,6 +88,8 @@ class Command:
                 time_left = user_ref.get('extend_time')-(tools.time_now()-tools.to_datetime(user_ref.get('start_time')))
                 await Command.extend_time(user,time_left)
             elif user_status == 3:
+                my_library.remove_booked_seat(old_seat)
+                my_library.insert_booked_seat(seat)
                 my_library.remove_booked_user(user)
                 my_library.insert_booked_user(user, tools.time_now())
             return {}, Response.CREATED
@@ -95,6 +102,7 @@ class Command:
 
         my_library.remove_extend_user(user)
         my_library.remove_booked_user(user)
+        my_library.remove_booked_seat(seat)
 
         if not user_ref:
             return {}, Response.NO_CONTENT
@@ -134,10 +142,10 @@ class Command:
         elif seat[:2] == 'F2':
             my_library.floor_2.remove_user(user)
             my_library.floor_2.unoccupy_seat(seat)
-        user = seat_ref.get('seat_user')
 
         my_library.remove_extend_user(user)
         my_library.remove_booked_user(user)
+        my_library.remove_booked_seat(seat)
 
         await update_user(seat_ref.get('seat_user'), {
             'status': 0,
@@ -162,6 +170,7 @@ class Command:
             seat_id = user_ref.get('current_seat_id')
             # my_library.remove_extend_user(user)
             my_library.remove_booked_user(user)
+            my_library.remove_booked_seat(seat_id)
             if seat_id[:2] == 'F1':
                 my_library.floor_1.insert_user(user)
                 my_library.floor_1.occupy_seat(seat_id)
@@ -192,7 +201,9 @@ class Command:
             booked_datetime = tools.to_datetime(booked_time)
             time_diff = tools.time_now() - booked_datetime
             if time_diff.total_seconds() > 300:
+                user_ref = (await get_user(user))[0]
                 my_library.remove_booked_user(user)
+                my_library.remove_booked_seat(user_ref.get('current_seat_id'))
                 await Command.remove_user(user)
 
     @staticmethod
@@ -217,7 +228,7 @@ class Command:
     async def get_occupied(floor):
         occupied_seats = dict()
         if floor == 1:
-            for seat in my_library.floor_1.all_seats:
+            for seat in my_library.floor_1.all_seats+my_library.booked_seats():
                 seat_ref = (await get_seat(seat))[0]
                 seat_detail = dict()
                 seat_detail['caption'] = seat_ref.get('caption')
@@ -225,7 +236,7 @@ class Command:
                 occupied_seats[seat] = seat_detail
             return occupied_seats, Response.OK
         elif floor == 2:
-            for seat in my_library.floor_2.all_seats:
+            for seat in my_library.floor_2.all_seats+my_library.booked_seats():
                 seat_ref = (await get_seat(seat))[0]
                 seat_detail = dict()
                 seat_detail['caption'] = seat_ref.get('caption')
