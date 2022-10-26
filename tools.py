@@ -33,26 +33,6 @@ def time_now():
     return datetime.datetime.now()
 
 
-def random_unique_id(length):
-    # Getting password length
-    characterList = ""
-
-    # Getting character set for password
-    characterList += string.ascii_letters
-    characterList += string.digits
-    characterList += string.punctuation
-    password = ""
-
-    for i in range(length):
-        # Picking a random character from our
-        # character list
-        randomchar = random.choice(characterList)
-        # appending a random character to password
-        password += randomchar
-
-    return password
-
-
 def generate_hash(passwd):
     passwd_t = 'k'.join([RAND_MAP.get(e) if e in RAND_MAP.keys() else e for e in passwd])
     return hashlib.sha1(passwd_t.encode()).hexdigest()[::2]

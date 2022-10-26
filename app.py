@@ -1,4 +1,7 @@
+from http.client import OK
 from http.cookies import BaseCookie
+from urllib import response
+from webbrowser import get
 from flask import Flask
 from flask import request
 from firebase_admin import credentials
@@ -203,7 +206,18 @@ class Command:
                 my_library.remove_extend_user(user)
                 await Command.remove_user(user)
 
+    @staticmethod
+    async def add_friend(user,friend,unique_id):
+        if (tools.generate_hash(friend)==unique_id):
+            return {},Response.OK   
+        return {},Response.BAD_REQUEST
 
+    @staticmethod
+    async def remove_friend(user,friend):
+        user_ref = (await get_user(user))[0]
+        if friend in user_ref.get('friends'):
+            return {},Response.OK   
+        return {},Response.BAD_REQUEST
 # ####################### INSERT BACKGROUND TASKS HERE, E.G. CHECKING SOMETHING EVERY 1 S ########################
 
 
@@ -259,6 +273,8 @@ async def run_cmd(command):
         return Command.check_in(q.get('user'))
     elif command == 'check_out':
         return Command.check_out(q.get('user'),q.get('seat'))
+    elif command == 'get_unique_id':
+        return {'unique_id':tools.generate_hash()},Response.OK
     elif command == 'add_friend':
         pass
     elif command == 'remove_friend':
