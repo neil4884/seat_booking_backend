@@ -207,9 +207,25 @@ class Command:
                 await Command.remove_user(user)
 
     @staticmethod
-    async def get_occupied():
-
-        return {}, Response.NO_CONTENT
+    async def get_occupied(floor):
+        occupied_seats = dict()
+        if floor == 1:
+            for seat in my_library.floor_1.all_seats:
+                seat_ref = (await get_seat(seat))[0]
+                seat_detail = dict()
+                seat_detail['caption'] = seat_ref.get('caption')
+                seat_detail['whatsup'] = seat_ref.get('whatsup')
+                occupied_seats[seat] = seat_detail
+            return seat_detail,Response.OK
+        elif floor == 2:
+            for seat in my_library.floor_2.all_seats:
+                seat_ref = (await get_seat(seat))[0]
+                seat_detail = dict()
+                seat_detail['caption'] = seat_ref.get('caption')
+                seat_detail['whatsup'] = seat_ref.get('whatsup')
+                occupied_seats[seat] = seat_detail
+            return seat_detail,Response.OK
+        return {}, Response.BAD_REQUEST
 
 
 # ####################### INSERT BACKGROUND TASKS HERE, E.G. CHECKING SOMETHING EVERY 1 S ########################
