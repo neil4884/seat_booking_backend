@@ -282,13 +282,6 @@ async def run_cmd(command):
 
     return {}, Response.BAD_REQUEST
 
-
-@app.route('/api/auth/secret/<user>', methods=['GET'])
-async def get_secret(user):
-
-    return {}, Response.UNAUTHORIZED
-
-
 # ####################### TEMPLATE FOR THING QUERY ########################
 
 async def get_things(*args, collection_name: str):
