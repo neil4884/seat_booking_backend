@@ -86,7 +86,7 @@ class Command:
                 # EXTEND_TIME IS DURATION OF THAT TIME WAS EXTENDED// TIME STAMP OR INT?
                 my_library.remove_extend_user(user)
                 time_left = user_ref.get('extend_time') - (
-                        tools.time_now() - tools.to_datetime(user_ref.get('start_time')))
+                        tools.time_now() - tools.to_datetime(user_ref.get('start_time'))).total_seconds()
                 await Command.extend_time(user, time_left)
             elif user_status == 3:
                 my_library.remove_booked_seat(old_seat)
@@ -266,11 +266,8 @@ async def background_tasks_fast(cmd_instance: Command):
 
 
 async def background_tasks_slow(cmd_instance: Command):
-    # print('Running slow tasks in the background...')
-    # print('Instance id =', cmd_instance.instance_id)
-    # library = await get_user('6430000521')
-    # await update_user('6430000521', {'friends': []})
-    # print(library)
+    await cmd_instance.check_book_timeout()
+    await cmd_instance.check_extend_timeout()
     return
 
 
