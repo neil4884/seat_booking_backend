@@ -42,13 +42,13 @@ if __name__ == '__main__':
         user_doc_ref.set(u)
         print(u)
 
-    for seat_id in list_seats:
-        s = {
-            'id': seat_id,
-            'status': 0,
-            'seat_user': '',
-            'booked_time': datetime.datetime.now(),
-        }
-        user_doc_ref = db.collection('seat').document(seat_id)
-        user_doc_ref.set(s)
-        print(s)
+    # for seat_id in list_seats:
+    #     s = {
+    #         'id': seat_id,
+    #         'status': 0,
+    #         'seat_user': '',
+    #         'booked_time': datetime.datetime.now(),
+    #     }
+    #     user_doc_ref = db.collection('seat').document(seat_id)
+    #     user_doc_ref.set(s)
+    #     print(s)

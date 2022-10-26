@@ -4,7 +4,7 @@ from tools import time_now
 
 
 class Room:
-    def __init__(self) :
+    def __init__(self):
         self.__all_users = []
         self.__all_seats = []
 
@@ -42,7 +42,6 @@ class Room:
     def all_seats(self, value):
         self.__all_seats = value
         return
-
 
     def insert_user(self, user):
         if user in self.__all_seats:
@@ -125,7 +124,7 @@ class Library:
     @property
     def booked_user_size(self):
         return len(self.__booked_users)
-    
+
     @property
     def extend_user_size(self):
         return len(self.__extend_users)
@@ -133,17 +132,17 @@ class Library:
     @property
     def extend_users(self):
         return self.__extend_users
-    
+
     @extend_users.setter
-    def extend_users(self,value):
+    def extend_users(self, value):
         self.__extend_users = value
 
     @property
     def booked_users(self):
         return self.__booked_users
-    
+
     @booked_users.setter
-    def booked_users(self,value):
+    def booked_users(self, value):
         self.__booked_users = value
 
     def insert_booked_user(self, user, booked_time):
@@ -160,9 +159,9 @@ class Library:
     def insert_extend_user(self, user, extend_time, duration):
         if user in self.__extend_users:
             return False
-        self.__extend_users[user] = (extend_time,duration)
-    
-    def remove_extend_user(self,user):
+        self.__extend_users[user] = (extend_time, duration)
+
+    def remove_extend_user(self, user):
         if user in self.__extend_users:
             self.__extend_users.pop(user)
             return True

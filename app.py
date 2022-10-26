@@ -207,17 +207,11 @@ class Command:
                 await Command.remove_user(user)
 
     @staticmethod
-    async def add_friend(user,friend,unique_id):
-        if (tools.generate_hash(friend)==unique_id):
-            return {},Response.OK   
-        return {},Response.BAD_REQUEST
+    async def get_occupied():
 
-    @staticmethod
-    async def remove_friend(user,friend):
-        user_ref = (await get_user(user))[0]
-        if friend in user_ref.get('friends'):
-            return {},Response.OK   
-        return {},Response.BAD_REQUEST
+        return {}, Response.NO_CONTENT
+
+
 # ####################### INSERT BACKGROUND TASKS HERE, E.G. CHECKING SOMETHING EVERY 1 S ########################
 
 
@@ -260,27 +254,26 @@ async def run_cmd(command):
     if command == 'get_all_users':
         return await get_users()
     elif command == 'book':
-        return Command.book(q.get('user'),q.get('seat'))
-    elif command == 'remove_all_user':
-        return Command.remove_users()
+        return Command.book(q.get('user'), q.get('seat'))
     elif command == 'remove_user':
         return Command.remove_user(q.get('user'))
-    elif command == 'remove_all_seats':
-        return Command.remove_seats
     elif command == 'remove_seat':
         return Command.remove_seat(q.get('seat'))
     elif command == 'check_in':
         return Command.check_in(q.get('user'))
     elif command == 'check_out':
-        return Command.check_out(q.get('user'),q.get('seat'))
+        return Command.check_out(q.get('user'), q.get('seat'))
     elif command == 'get_unique_id':
-        return {'unique_id':tools.generate_hash()},Response.OK
+        return {'unique_id': tools.generate_hash(q.get('user'))}, Response.OK
     elif command == 'add_friend':
-        pass
+        return await append_to_thing('friend', q.get('friends'), collection_name=USERS_COLLECTION)
     elif command == 'remove_friend':
-        pass
+        return await remove_from_thing('friend', q.get('friends'), collection_name=USERS_COLLECTION)
+    elif command == 'get_occupied':
+        return None
 
     return {}, Response.BAD_REQUEST
+
 
 # ####################### TEMPLATE FOR THING QUERY ########################
 
@@ -372,6 +365,22 @@ async def delete_thing(thing, /, collection_name: str):
         return {}, Response.NO_CONTENT
     thing_doc_ref.delete()
     return thing_doc.to_dict(), Response.OK
+
+
+async def append_to_thing(thing, /, *things_to_append, collection_name: str):
+    thing_doc_ref = db.collection(collection_name).document(thing)
+    if not things_to_append:
+        return {}, Response.NO_CONTENT
+    thing_doc_ref.update({thing: firestore.ArrayUnion(things_to_append)})
+    return {thing: things_to_append}, Response.OK
+
+
+async def remove_from_thing(thing, /, *things_to_remove, collection_name: str):
+    thing_doc_ref = db.collection(collection_name).document(thing)
+    if not things_to_remove:
+        return {}, Response.NO_CONTENT
+    thing_doc_ref.update({thing: firestore.ArrayRemove(things_to_remove)})
+    return {thing: things_to_remove}, Response.OK
 
 
 # ####################### USER QUERY ########################
