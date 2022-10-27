@@ -177,7 +177,7 @@ class Command:
         user_ref = (await get_user(user))[0]
         if user_ref.get('status') == 3 and user_ref.get('current_seat_id'):
             seat_id = user_ref.get('current_seat_id')
-            # my_library.remove_extend_user(user)
+            my_library.remove_extend_user(user)
             my_library.remove_booked_user(user)
             my_library.remove_booked_seat(seat_id)
             if seat_id[:2] == 'F1':
