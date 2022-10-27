@@ -177,7 +177,7 @@ class Library:
         return True
 
     def remove_booked_seat(self, seat):
-        if seat in self.__booked_users:
+        if seat in self.__booked_seats:
             self.__booked_seats.remove(seat)
             return True
         return False

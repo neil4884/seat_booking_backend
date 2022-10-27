@@ -206,15 +206,17 @@ class Command:
 
     @staticmethod
     async def check_book_timeout():
-        print(my_library.booked_users)
+        to_remove = []
         for user, booked_time in my_library.booked_users.items():
             booked_datetime = tools.to_datetime(booked_time)
             time_diff = tools.time_now() - booked_datetime
             if time_diff.total_seconds() > 300:
                 user_ref = (await get_user(user))[0]
-                my_library.remove_booked_user(user)
-                my_library.remove_booked_seat(user_ref.get('current_seat_id'))
-                await Command.check_out(user)
+                to_remove.append([user, user_ref.get('current_seat_id')])
+        for user, user_seat in to_remove:
+            my_library.remove_booked_user(user)
+            my_library.remove_booked_seat(user_seat)
+            await Command.check_out(user)
 
     @staticmethod
     async def check_extend_timeout():
