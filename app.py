@@ -624,4 +624,4 @@ concurrent_thread_2 = threading.Thread(target=setup_loop,
 concurrent_thread_2.start()
 
 if __name__ == '__main__':
-    app.run(debug=False)
+    app.run(host='demo.api.booking.vtneil.space', port=80, debug=False)
