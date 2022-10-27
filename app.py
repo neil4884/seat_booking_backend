@@ -1,4 +1,5 @@
 from flask import Flask
+from flask_cors import CORS
 from flask import request
 from firebase_admin import credentials
 from firebase_admin import firestore
@@ -23,6 +24,7 @@ cred = credentials.Certificate(os.path.join(os.path.dirname(__file__), CREDENTIA
 app_fb = fb.initialize_app(cred)
 db = firestore.client()
 app = Flask(__name__)
+CORS(app)
 
 f1_ocpd_seats = 0
 f2_ocpd_seats = 0
