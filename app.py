@@ -214,7 +214,7 @@ class Command:
                 user_ref = (await get_user(user))[0]
                 my_library.remove_booked_user(user)
                 my_library.remove_booked_seat(user_ref.get('current_seat_id'))
-                await Command.remove_user(user)
+                await Command.check_out(user)
 
     @staticmethod
     async def check_extend_timeout():
@@ -223,7 +223,7 @@ class Command:
             time_diff = tools.time_now() - extend_datetime
             if time_diff.total_seconds() > extend_prop[1]:
                 my_library.remove_extend_user(user)
-                await Command.remove_user(user)
+                await Command.check_out(user)
 
     @staticmethod
     async def extend_time(user, extend_time):
@@ -354,7 +354,8 @@ async def get_things(*args, collection_name: str):
 async def get_thing(thing, /, collection_name: str):
     thing_doc_ref = db.collection(collection_name).document(thing)
     thing_doc = thing_doc_ref.get()
-    if not thing_doc.exists:
+    ret = thing_doc.to_dict()
+    if not ret:
         return {}, Response.NO_CONTENT
     return thing_doc.to_dict(), Response.OK
 
