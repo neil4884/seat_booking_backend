@@ -218,12 +218,15 @@ class Command:
 
     @staticmethod
     async def check_extend_timeout():
+        to_remove = []
         for user, extend_prop in my_library.extend_users.items():
             extend_datetime = tools.to_datetime(extend_prop[0])
             time_diff = tools.time_now() - extend_datetime
             if time_diff.total_seconds() > extend_prop[1]:
-                my_library.remove_extend_user(user)
-                await Command.check_out(user)
+                to_remove.append(user)
+        for user in to_remove:
+            my_library.remove_extend_user(user)
+            await Command.check_out(user)
 
     @staticmethod
     async def extend_time(user, extend_time):
