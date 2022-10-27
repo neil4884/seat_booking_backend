@@ -23,7 +23,8 @@ list_users = [
     '{}'.format(str(k).zfill(3)) for k in range(1, 101)
 ]
 
-if __name__ == '__main__':
+
+def reset_db():
     for user_id in list_users:
         name = random.choice(names) + ' ' + random.choice(names)
         u = {
@@ -52,3 +53,7 @@ if __name__ == '__main__':
         user_doc_ref = db.collection('seats').document(seat_id)
         user_doc_ref.set(s)
         print(s)
+
+
+if __name__ == '__main__':
+    reset_db()
