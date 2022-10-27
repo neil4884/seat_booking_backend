@@ -48,7 +48,7 @@ class Command:
         return
 
     @staticmethod
-    async def book(user: str, seat: str):
+    async def book(user: str, seat: str, caption: str, whatsup: str):
         user_ref = (await get_user(user))[0]
         old_seat = user_ref.get('current_seat_id')
         seat_ref = (await get_seat(seat))[0]
@@ -61,7 +61,9 @@ class Command:
             await update_user(user, {
                 'status': 3,
                 'current_seat_id': seat,
-                'booked_time': tools.time_now()
+                'booked_time': tools.time_now(),
+                'caption': caption,
+                'whatsup': whatsup
             })
             await update_seat(seat, {
                 'status': 1,
@@ -73,7 +75,9 @@ class Command:
             await update_user(user, {
                 'status': 3,
                 'current_seat_id': seat,
-                'booked_time': tools.time_now()
+                'booked_time': tools.time_now(),
+                'caption': caption,
+                'whatsup': whatsup
             })
             await update_seat(seat, {
                 'status': 1,
@@ -150,7 +154,9 @@ class Command:
 
         await update_user(seat_ref.get('seat_user'), {
             'status': 0,
-            'current_seat_id': ''
+            'current_seat_id': '',
+            'caption': '',
+            'whatsup': ''
         })
         await update_seat(seat, {
             'status': 0,
@@ -198,7 +204,8 @@ class Command:
 
     @staticmethod
     async def check_book_timeout():
-        for user, booked_time in my_library.booked_users:
+        print(my_library.booked_users)
+        for user, booked_time in my_library.booked_users.items():
             booked_datetime = tools.to_datetime(booked_time)
             time_diff = tools.time_now() - booked_datetime
             if time_diff.total_seconds() > 300:
@@ -209,7 +216,7 @@ class Command:
 
     @staticmethod
     async def check_extend_timeout():
-        for user, extend_prop in my_library.extend_users:
+        for user, extend_prop in my_library.extend_users.items():
             extend_datetime = tools.to_datetime(extend_prop[0])
             time_diff = tools.time_now() - extend_datetime
             if time_diff.total_seconds() > extend_prop[1]:
@@ -227,22 +234,24 @@ class Command:
     @staticmethod
     async def get_occupied(floor):
         occupied_seats = dict()
-        if floor == 1:
-            for seat in my_library.floor_1.all_seats + my_library.booked_seats():
+        if floor in (1, 2):
+            for seat in my_library.floor_1.all_seats + my_library.booked_seats:
                 seat_ref = (await get_seat(seat))[0]
+                user_ref = (await get_user(seat_ref.get('seat_user')))[0]
                 seat_detail = dict()
-                seat_detail['caption'] = seat_ref.get('caption')
-                seat_detail['whatsup'] = seat_ref.get('whatsup')
+                seat_detail['caption'] = user_ref.get('caption')
+                seat_detail['whatsup'] = user_ref.get('whatsup')
                 occupied_seats[seat] = seat_detail
             return occupied_seats, Response.OK
-        elif floor == 2:
-            for seat in my_library.floor_2.all_seats + my_library.booked_seats():
-                seat_ref = (await get_seat(seat))[0]
-                seat_detail = dict()
-                seat_detail['caption'] = seat_ref.get('caption')
-                seat_detail['whatsup'] = seat_ref.get('whatsup')
-                occupied_seats[seat] = seat_detail
-            return occupied_seats, Response.OK
+        # elif floor == 2:
+        #     for seat in my_library.floor_2.all_seats + my_library.booked_seats:
+        #         seat_ref = (await get_seat(seat))[0]
+        #         user_ref = (await get_user(seat_ref.get('seat_user')))[0]
+        #         seat_detail = dict()
+        #         seat_detail['caption'] = user_ref.get('caption')
+        #         seat_detail['whatsup'] = user_ref.get('whatsup')
+        #         occupied_seats[seat] = seat_detail
+        #     return occupied_seats, Response.OK
         return {}, Response.BAD_REQUEST
 
 
@@ -268,6 +277,7 @@ async def background_tasks_fast(cmd_instance: Command):
 async def background_tasks_slow(cmd_instance: Command):
     await cmd_instance.check_book_timeout()
     await cmd_instance.check_extend_timeout()
+    print(my_library)
     return
 
 
@@ -282,11 +292,12 @@ async def run_cmd(command):
     :return:
     """
     q = json2dict(request.data)
+    print(q)
 
     if command == 'get_all_users':
         return await get_users()
     elif command == 'book':
-        return await Command.book(q.get('user'), q.get('seat'))
+        return await Command.book(q.get('user'), q.get('seat'), q.get('caption'), q.get('whatsup'))
     elif command == 'remove_user':
         return await Command.remove_user(q.get('user'))
     elif command == 'remove_seat':

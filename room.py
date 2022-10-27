@@ -194,6 +194,13 @@ class Library:
             return True
         return False
 
+    def __str__(self):
+        return '\n---{}---\n'.format(self.__class__) + str(self.__extend_users) + '\n' + str(self.__booked_users) + '\n' + str(
+            self.__booked_seats) + '\n' + str(self.__floors) + '\n-------------------\n'
+
+    def __repr__(self):
+        return self.__str__()
+
 
 if __name__ == '__main__':
     eng_lib = Library()
@@ -205,3 +212,4 @@ if __name__ == '__main__':
     eng_lib.floor_1.occupy_seat('x3')
     print(eng_lib.floor_1.room)
     print(eng_lib.floor_2.room)
+    print(eng_lib)
