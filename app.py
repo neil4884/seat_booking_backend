@@ -292,7 +292,7 @@ async def run_cmd(command):
     :return:
     """
     q = json2dict(request.data)
-    print(q)
+    print('query_args:', q)
 
     if command == 'get_all_users':
         return await get_users()
